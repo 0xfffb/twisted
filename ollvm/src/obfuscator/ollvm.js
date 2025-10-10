@@ -8,10 +8,8 @@ class OLLVMObfuscator extends Obfuscator {
 
     obfuscate() {
         this.transformers.forEach(transformer => {
-            console.log(this.ast)
             this.ast = transformer.transform(this.ast)
         })
-        return this.generate()
     }
 }
 

@@ -1,11 +1,11 @@
 import { parse } from '@babel/parser'
-import { generate } from '@babel/generator'
+import { generate as _generate } from '@babel/generator'
 
 class Obfuscator {
     constructor(code, transformers) {
         this.code = code
-        this.ast = this.parse()
         this.transformers = transformers
+        this.ast = this.parse()
     }
 
     obfuscate() {
@@ -27,7 +27,7 @@ class Obfuscator {
 
     generate() {
         try {
-            const result = generate(this.ast, {})
+            const result = _generate(this.ast, {})
             return result.code
         } catch (error) {
             console.error(`Error generating code: ${error}`)

@@ -10,13 +10,13 @@ function main() {
 
 
     const transformers = [
-        new StringTransformer(input)
+        new StringTransformer()
     ]
 
     const obfuscator = new OLLVMObfuscator(input, transformers)
-
-    const output = obfuscator.obfuscate()
-    console.log(output)
+    obfuscator.obfuscate()
+    const output = obfuscator.generate()
+    console.log("Obfuscated code successfully generated")
     fileUtils.writeFile(outputFile, output)
 }
 

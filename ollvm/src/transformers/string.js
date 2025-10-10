@@ -12,7 +12,7 @@ class StringTransformer extends Transformer {
         }
         traverse.default(ast, {
             StringLiteral(path) {
-                path.node.value = "Hello world"
+                path.node.value = "Hello world."
             }
         })
         return ast

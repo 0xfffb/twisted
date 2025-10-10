@@ -3,5 +3,5 @@ function sum(a, b) {
 }
 
 function test() {
-    return "test"
+    return "test1"
 }
