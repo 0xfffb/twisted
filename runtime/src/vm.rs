@@ -1,49 +1,7 @@
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Int(i64),
-    String(String),
-    Null,
-}
+use crate::vm::opcode::{OpCode, Value, ValueType};
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
-#[repr(u8)]
-pub enum OpCode {
-    // 常量指令
-    Push(Value) = 0x00,
-    Pop = 0x01,
-    // 算术指令
-    Add = 0x02,
-    Sub = 0x03,
+mod opcode;
 
-    // test
-    Test = 0x04,
-}
-
-impl From<u8> for OpCode {
-    fn from(value: u8) -> Self {
-        match value {
-            0x00 => OpCode::Push(Value::Null),
-            0x01 => OpCode::Pop,
-            0x02 => OpCode::Add,
-            0x03 => OpCode::Sub,
-            0x04 => OpCode::Test,
-            _ => panic!("Invalid opcode: {value}"),
-        }
-    }
-}
-
-impl From<OpCode> for u8 {
-    fn from(value: OpCode) -> Self {
-        match value {
-            OpCode::Push(_) => 0x00,
-            OpCode::Pop => 0x01,
-            OpCode::Add => 0x02,
-            OpCode::Sub => 0x03,
-            OpCode::Test => 0x04,
-        }
-    }
-}
 #[derive(Debug, Clone)]
 pub struct Vm {
     stack: Vec<Value>,
@@ -58,16 +16,36 @@ impl Vm {
         }
     }
 
-    pub fn run<T>(&mut self, program: &[T]) -> Option<Value>
-    where
-        T: Into<OpCode> + Into<u8> + Clone,
-    {
+    pub fn run(&mut self, program: &[u8]) -> Option<Value> {
         while self.pc < program.len() {
-            let op = program[self.pc].clone().into();
+            let op = program[self.pc].into();
             match op {
-                OpCode::Push(value) => {
-                    self.stack.push(value);
+                OpCode::Push => {
                     self.pc += 1;
+                    let value_type = program[self.pc].into();
+                    self.pc += 1;
+                    match value_type {
+                        ValueType::Int => {
+                            if self.pc + 8 > program.len() {
+                                return None;
+                            }
+                            let value = i64::from_le_bytes(program[self.pc..self.pc + 8].try_into().unwrap());
+                            self.stack.push(Value::Int(value));
+                            self.pc += 8;
+                        }
+                        ValueType::String => {
+                            if self.pc + 8 > program.len() {
+                                return None;
+                            }
+                            let value = String::from_utf8(program[self.pc..self.pc + 8].to_vec()).unwrap();
+                            self.stack.push(Value::String(value));
+                            self.pc += 8;
+                        }
+                        ValueType::Null => {
+                            self.stack.push(Value::Null);
+                            self.pc += 1;
+                        }
+                    };
                 }
                 OpCode::Pop => {
                     let _ = self.stack.pop().unwrap();
@@ -112,11 +90,24 @@ mod tests {
     fn test_vm() {
         let mut vm = Vm::new();
         let program = [
-            OpCode::Push(Value::Int(1)),
-            OpCode::Push(Value::Int(2)),
-            OpCode::Add,
+            OpCode::Push.into(),
+            OpCode::Push.into(),
+            OpCode::Add.into(),
         ];
         let stack = vm.run(&program);
         assert_eq!(stack, Some(Value::Int(3)));
+    }
+
+    #[test]
+    fn test_vm_push_int() {
+        let mut vm = Vm::new();
+        let program = [
+            OpCode::Push.into(),
+            ValueType::Int.into(),
+            0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        ];
+        let stack = vm.run(&program);
+        println!("stack: {:?}", stack);
+        assert_eq!(stack, Some(Value::Int(123)));
     }
 }
