@@ -82,6 +82,14 @@ impl Vm {
                     self.stack.push(Value::String("Hello, world!".to_string()));
                     self.pc += 1;
                 }
+                OpCode::StringEncrypt => {
+                    let Some(Value::String(value)) = self.stack.pop() else {
+                        return None;
+                    };
+                    let value = value.replace("Hello", "Hi");
+                    self.stack.push(Value::String(value));
+                    self.pc += 1;
+                }
             }
         }
         self.stack.last().cloned()
@@ -132,5 +140,19 @@ mod tests {
         ];
         let stack = vm.run(&program);
         assert_eq!(stack, Some(Value::String("Hello, world!".to_string())));
+    }
+
+    #[test]
+    fn test_vm_string_encrypt() {
+        let mut vm = Vm::new();
+        let program = [
+            OpCode::Push.into(),
+            ValueType::String.into(),
+            0x0D, 0x00, 0x00, 0x00,
+            0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x77, 0x6F, 0x72, 0x6C, 0x64, 0x21, // "Hello, world!"
+            OpCode::StringEncrypt.into(),
+        ];
+        let stack = vm.run(&program);
+        assert_eq!(stack, Some(Value::String("Hi, world!".to_string())));
     }
 }

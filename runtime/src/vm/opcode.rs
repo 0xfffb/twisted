@@ -44,6 +44,9 @@ pub enum OpCode {
 
     // test
     Test = 0x04,
+
+    // encrypt
+    StringEncrypt = 0x05,
 }
 
 impl From<u8> for OpCode {
@@ -54,6 +57,7 @@ impl From<u8> for OpCode {
             0x02 => OpCode::Add,
             0x03 => OpCode::Sub,
             0x04 => OpCode::Test,
+            0x05 => OpCode::StringEncrypt,
             _ => panic!("Invalid opcode: {value}"),
         }
     }
