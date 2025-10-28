@@ -87,15 +87,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_vm() {
+    fn test_add() {
         let mut vm = Vm::new();
         let program = [
             OpCode::Push.into(),
+            ValueType::Int.into(),
+            0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             OpCode::Push.into(),
+            ValueType::Int.into(),
+            0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             OpCode::Add.into(),
         ];
         let stack = vm.run(&program);
-        assert_eq!(stack, Some(Value::Int(3)));
+        assert_eq!(stack, Some(Value::Int(246)));
     }
 
     #[test]
@@ -104,10 +108,9 @@ mod tests {
         let program = [
             OpCode::Push.into(),
             ValueType::Int.into(),
-            0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            0x7B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         let stack = vm.run(&program);
-        println!("stack: {:?}", stack);
         assert_eq!(stack, Some(Value::Int(123)));
     }
 }
