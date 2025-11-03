@@ -1,215 +1,298 @@
-# OLLVM - JavaScript 代码混淆器
+# Twisted - 反爬虫虚拟机系统
 
-一个基于 Babel AST 的 JavaScript 代码混淆工具，实现了类似 OLLVM 的混淆技术。
+一个基于虚拟机字节码的反爬虫解决方案，通过将JavaScript代码编译成自定义字节码并在Rust虚拟机中执行，实现对代码逻辑的保护和反爬虫功能。
 
-## 🚀 特性
+## 🎯 项目概述
 
-- **字符串混淆**：将字符串转换为字符数组拼接
-- **标识符混淆**：将变量名替换为随机字符串
-- **控制流平坦化**：添加假的条件判断
-- **死代码注入**：插入不会执行的代码
-- **模块化设计**：可扩展的变换器架构
-- **AST 操作**：基于 Babel 的精确代码转换
+Twisted 是一个完整的反爬虫系统，包含三个核心模块：
 
-## 📦 安装
-
-```bash
-# 克隆项目
-git clone <repository-url>
-cd ollvm
-
-# 安装依赖
-npm install
-```
-
-## 🛠️ 使用方法
-
-### 基本用法
-
-```bash
-# 混淆单个文件
-npm run start -- <输入文件>
-
-# 示例
-npm run start -- files/test.js
-```
-
-### 编程接口
-
-```javascript
-import OLLVMObfuscator from './src/obfuscator/ollvm.js'
-import StringTransformer from './src/transformers/string.js'
-
-// 创建混淆器
-const obfuscator = new OLLVMObfuscator(code, [
-    new StringTransformer()
-])
-
-// 执行混淆
-const obfuscatedCode = obfuscator.obfuscate()
-```
+1. **Encoder (编译器)**: 将JavaScript代码编译成自定义字节码
+2. **Runtime (虚拟机)**: Rust实现的栈式虚拟机，执行字节码
+3. **OLLVM (混淆器)**: JavaScript代码混淆工具
 
 ## 🏗️ 项目结构
 
 ```
-src/
-├── index.js                 # 主入口文件
-├── obfuscator/             # 混淆器模块
-│   ├── base.js            # 基础混淆器类
-│   └── ollvm.js           # OLLVM 混淆器实现
-├── transformers/          # 变换器模块
-│   ├── base.js            # 基础变换器类
-│   └── string.js          # 字符串混淆变换器
-└── utils/                 # 工具模块
-    └── file.js            # 文件操作工具
+twisted/
+├── encoder/              # JavaScript到字节码编译器
+│   ├── src/
+│   │   ├── compiler.js  # AST转字节码编译器
+│   │   ├── index.js     # 主入口
+│   │   ├── obfuscator/  # 混淆器模块
+│   │   ├── transformers/# 代码变换器
+│   │   └── utils/       # 工具函数
+│   └── package.json
+├── runtime/              # Rust虚拟机
+│   ├── src/
+│   │   ├── main.rs      # 主程序
+│   │   ├── vm.rs       # 虚拟机实现
+│   │   └── vm/
+│   │       └── opcode.rs # 操作码定义
+│   └── Cargo.toml
+├── ollvm/                # JavaScript混淆器
+│   ├── src/
+│   │   ├── index.js     # 主入口
+│   │   ├── obfuscator/  # 混淆器
+│   │   └── transformers/# 变换器
+│   └── package.json
+└── README.md
 ```
 
-## 🔧 混淆技术
+## 🚀 快速开始
 
-### 1. 字符串混淆
+### 环境要求
 
-将字符串字面量转换为字符数组拼接：
+- Node.js >= 16
+- Rust >= 1.70
+- npm 或 yarn
 
-```javascript
-// 原始代码
-const message = "Hello World"
+### 安装依赖
 
-// 混淆后
-const message = ["H","e","l","l","o"," ","W","o","r","l","d"].join("")
-```
-
-### 2. 标识符混淆
-
-将变量名替换为随机字符串：
-
-```javascript
-// 原始代码
-function calculateSum(a, b) {
-    return a + b
-}
-
-// 混淆后
-function xKj8mN2p(a, b) {
-    return a + b
-}
-```
-
-### 3. 控制流平坦化
-
-添加假的条件判断：
-
-```javascript
-// 原始代码
-if (condition) {
-    doSomething()
-}
-
-// 混淆后
-if (123 === 456 && condition) {
-    doSomething()
-}
-```
-
-## 🎯 自定义变换器
-
-创建自定义变换器：
-
-```javascript
-// src/transformers/custom.js
-import Transformer from './base.js'
-import traverse from '@babel/traverse'
-import * as t from '@babel/types'
-
-class CustomTransformer extends Transformer {
-    transform(ast) {
-        traverse(ast, {
-            // 你的变换逻辑
-            Identifier(path) {
-                // 处理标识符
-            }
-        })
-        return ast
-    }
-}
-
-export default CustomTransformer
-```
-
-## 📋 API 文档
-
-### Obfuscator 基类
-
-```javascript
-class Obfuscator {
-    constructor(code, transformers)
-    parse()                    // 解析代码为 AST
-    generate()                 // 生成混淆后的代码
-    obfuscate()               // 执行混淆（子类实现）
-}
-```
-
-### Transformer 基类
-
-```javascript
-class Transformer {
-    transform(ast)             // 变换 AST（子类实现）
-}
-```
-
-## 🚀 开发
-
-### 运行测试
+#### Encoder (JavaScript编译器)
 
 ```bash
-# 运行示例
+cd encoder
+npm install
+```
+
+#### Runtime (Rust虚拟机)
+
+```bash
+cd runtime
+cargo build
+```
+
+#### OLLVM (混淆器)
+
+```bash
+cd ollvm
+npm install
+```
+
+## 📖 使用指南
+
+### 1. 编译JavaScript到字节码
+
+```bash
+cd encoder
+npm run start
+```
+
+这会编译 `files/test.js` 并生成字节码。
+
+### 2. 执行字节码
+
+```bash
+cd runtime
+cargo run
+```
+
+### 3. 混淆JavaScript代码
+
+```bash
+cd ollvm
 npm run start -- files/test.js
 ```
 
-### 添加新的混淆技术
+## 🔧 核心功能
 
-1. 在 `src/transformers/` 中创建新的变换器
-2. 继承 `Transformer` 基类
-3. 实现 `transform(ast)` 方法
-4. 在主文件中注册变换器
+### Encoder (编译器)
 
-## 📝 示例
+**功能特性:**
+- ✅ AST递归遍历
+- ✅ 支持变量声明和表达式
+- ✅ 支持局部和全局变量作用域
+- ✅ 二进制操作（加减乘除）
+- ✅ 字节码十六进制输出
 
-### 输入文件 (test.js)
+**支持的语法:**
+- 变量声明 (`const`, `let`, `var`)
+- 二元表达式 (`+`, `-`, `*`, `/`)
+- 字面量 (`数字`, `字符串`)
+- 标识符引用
 
-```javascript
-function greet(name) {
-    const message = "Hello, " + name
-    console.log(message)
-    return message
-}
-
-greet("World")
+**字节码格式:**
+```
+[Opcode] [Type] [Value...]
+例如: Push Int 10 → [0x00, 0x01, 0x0A, ...]
 ```
 
-### 输出文件 (test.ollvm.js)
+### Runtime (虚拟机)
 
-```javascript
-function greet(name) {
-    const message = ["H","e","l","l","o",","," "].join("") + name
-    console.log(message)
-    return message
+**功能特性:**
+- ✅ 栈式虚拟机
+- ✅ 支持多种数据类型 (Int, String, Null)
+- ✅ 程序计数器 (PC) 管理
+- ✅ 栈操作 (Push/Pop)
+- ✅ 算术运算 (Add/Sub)
+
+**支持的操作码:**
+- `0x00`: Push - 压栈
+- `0x01`: Pop - 出栈
+- `0x02`: Add - 加法
+- `0x03`: Sub - 减法
+- `0x04`: Test - 测试指令
+- `0x05`: StringEncrypt - 字符串加密
+
+### OLLVM (混淆器)
+
+**功能特性:**
+- ✅ 字符串混淆
+- ✅ 控制流平坦化
+- ✅ 标识符混淆
+- ✅ 死代码注入
+
+## 🛡️ 反爬虫特性
+
+### 当前实现
+
+- **字节码编译**: JavaScript逻辑被编译成字节码，隐藏源代码
+- **栈式执行**: 代码在虚拟机中执行，难以静态分析
+- **代码混淆**: 支持多种混淆技术
+
+### 计划实现
+
+- **动态Opcode映射**: 每次执行使用不同的操作码映射
+- **字节码加密**: 部署时加密字节码
+- **反调试检测**: 检测调试器和自动化工具
+- **环境指纹**: 基于环境信息生成动态密钥
+- **多层虚拟机**: 虚拟机嵌套执行
+
+## 📚 开发指南
+
+### 添加新的操作码
+
+1. **在Runtime中定义操作码:**
+
+```rust
+// runtime/src/vm/opcode.rs
+#[repr(u8)]
+pub enum OpCode {
+    // ... 现有操作码
+    Mul = 0x06,  // 新增乘法
 }
-
-greet(["W","o","r","l","d"].join(""))
 ```
 
-## 🔧 依赖
+2. **在VM中实现处理逻辑:**
 
-- `@babel/core` - Babel 核心库
-- `@babel/parser` - JavaScript 解析器
-- `@babel/generator` - 代码生成器
-- `@babel/traverse` - AST 遍历器
-- `@babel/types` - AST 节点类型
+```rust
+// runtime/src/vm.rs
+OpCode::Mul => {
+    // 实现乘法逻辑
+}
+```
+
+3. **在Compiler中生成指令:**
+
+```javascript
+// encoder/src/compiler.js
+emitOp(op) {
+    const ops = {
+        // ... 现有操作符
+        '*': 0x06,  // 新增乘法
+    }
+}
+```
+
+### 扩展编译器功能
+
+添加新的AST节点类型支持:
+
+```javascript
+// encoder/src/compiler.js
+compileNode(node) {
+    switch (node.type) {
+        case "YourNewNodeType":
+            this.compileYourNewNode(node)
+            break
+        // ...
+    }
+}
+```
+
+### 添加混淆技术
+
+创建新的变换器:
+
+```javascript
+// ollvm/src/transformers/yourTransformer.js
+import Transformer from './base.js'
+
+class YourTransformer extends Transformer {
+    transform(ast) {
+        // 你的混淆逻辑
+        return ast
+    }
+}
+```
+
+## 🧪 测试
+
+### 测试编译器
+
+```bash
+cd encoder
+npm run start
+```
+
+### 测试虚拟机
+
+```bash
+cd runtime
+cargo test
+```
+
+### 测试混淆器
+
+```bash
+cd ollvm
+npm run start -- files/test.js
+```
+
+## 📊 字节码格式说明
+
+### Push指令格式
+
+```
+Push Int:    [0x00] [0x01] [8字节小端序整数]
+Push String: [0x00] [0x02] [4字节长度] [字符串内容]
+Push Null:   [0x00] [0x03]
+```
+
+### 操作指令格式
+
+```
+Add: [0x02]
+Sub: [0x03]
+```
+
+### 变量操作格式
+
+```
+LoadLocal:  [0x10] [变量索引]
+StoreLocal: [0x11] [变量索引]
+LoadGlobal: [0x12] [变量索引]
+StoreGlobal:[0x13] [变量索引]
+```
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交Issue和Pull Request！
 
 ## 📄 许可证
 
 ISC License
+
+## 🔗 相关资源
+
+- [Babel AST文档](https://babeljs.io/docs/en/babel-parser)
+- [Rust文档](https://doc.rust-lang.org/)
+- [虚拟机设计模式](https://craftinginterpreters.com/)
+
+## 📝 更新日志
+
+### v0.1.0
+- ✅ 基础编译器实现
+- ✅ Rust虚拟机实现
+- ✅ 基础混淆器
+- ✅ 支持变量和表达式编译

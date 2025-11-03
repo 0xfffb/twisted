@@ -1,0 +1,151 @@
+# Twisted Project Rules
+
+这是一个反爬虫虚拟机系统项目，包含JavaScript编译器、Rust虚拟机和代码混淆器。
+
+## 项目结构
+
+- `encoder/`: JavaScript到字节码编译器 (Node.js)
+- `runtime/`: 栈式虚拟机实现 (Rust)
+- `ollvm/`: JavaScript代码混淆器 (Node.js)
+
+## 代码规范
+
+### JavaScript (Encoder/OLLVM)
+
+- 使用ES6+模块语法 (`import`/`export`)
+- 使用 `@babel/types` 进行AST类型检查
+- 类名使用PascalCase
+- 方法名使用camelCase
+- 常量使用UPPER_SNAKE_CASE
+
+### Rust (Runtime)
+
+- 遵循Rust标准命名规范
+- 使用 `#[repr(u8)]` 定义枚举以支持字节转换
+- 操作码使用 `u8` 类型
+- 使用 `Option<Value>` 处理可能失败的操作
+
+## 编译器 (Encoder) 规则
+
+### AST转换
+
+- 使用递归下降方式遍历AST
+- 支持作用域管理（全局和局部变量）
+- 使用 `traverse.default` 处理AST
+- 节点类型检查优先使用字符串比较 (`node.type === "TypeName"`)
+
+### 字节码生成
+
+- 字节码格式: `[Opcode] [Type] [Value...]`
+- 整数使用8字节小端序编码
+- 字符串使用4字节长度前缀 + UTF-8内容
+- 所有指令必须生成十六进制输出
+
+### 变量管理
+
+- 使用 `Map` 存储变量索引映射
+- 支持作用域栈管理局部和全局变量
+- 变量分配时自动分配递增索引
+
+## 虚拟机 (Runtime) 规则
+
+### 指令执行
+
+- 使用 `pc` (程序计数器) 跟踪执行位置
+- 栈操作必须检查边界
+- 所有操作码必须实现错误处理
+- 返回值使用 `Option<Value>`
+
+### 数据类型
+
+- `Value::Int(i64)` - 64位整数
+- `Value::String(String)` - UTF-8字符串
+- `Value::Null` - 空值
+
+### Opcode定义
+
+- 所有操作码必须定义在 `vm/opcode.rs`
+- 实现 `From<u8>` 和 `From<OpCode>` trait
+- 操作码值必须唯一且连续
+
+## 混淆器 (OLLVM) 规则
+
+- 所有变换器继承 `Transformer` 基类
+- 使用Babel traverse进行AST变换
+- 变换必须是可逆的或至少保持功能等价
+
+## 文件命名
+
+- JavaScript文件使用 `.js` 扩展名
+- Rust文件使用 `.rs` 扩展名
+- 测试文件以 `_test.rs` 结尾
+
+## 注释规范
+
+- 使用中文注释解释业务逻辑
+- 复杂算法必须添加注释
+- 每个模块顶部添加模块说明
+
+## 错误处理
+
+- JavaScript: 使用 `console.error` 输出错误
+- Rust: 使用 `Option` 或 `Result` 处理错误
+- 避免panic，除非是编程错误
+
+## 调试输出
+
+- 使用emoji前缀区分不同类型的日志:
+  - 🔍 查找/搜索
+  - 📝 节点处理
+  - 🔧 编译操作
+  - ⚡ 指令生成
+  - 🎯 最终结果
+  - ❌ 错误信息
+
+## 提交规范
+
+- 提交信息使用中文
+- 格式: `<类型>: <简短描述>`
+- 类型: feat(新功能), fix(修复), docs(文档), refactor(重构)
+
+## 开发工作流
+
+1. 修改代码前先理解现有架构
+2. 添加新功能时考虑对现有系统的影响
+3. 测试时使用 `files/test.js` 作为示例
+4. 确保编译器和虚拟机指令集保持同步
+
+## 反爬虫特性开发
+
+- 所有反爬虫特性必须平衡安全性和性能
+- 混淆不应该影响代码功能
+- 虚拟机必须能够正确执行混淆后的字节码
+
+## 依赖管理
+
+- JavaScript依赖使用 `package.json` 管理
+- Rust依赖使用 `Cargo.toml` 管理
+- 更新依赖前检查兼容性
+
+## 性能考虑
+
+- 字节码生成应该尽量紧凑
+- 虚拟机执行应该高效
+- 避免不必要的内存分配
+
+## 安全考虑
+
+- 字节码解析必须验证边界
+- 避免栈溢出攻击
+- 输入验证是必须的
+
+## 常见问题
+
+### Q: 如何添加新的操作码？
+A: 1) 在 `runtime/src/vm/opcode.rs` 定义 2) 在 `runtime/src/vm.rs` 实现 3) 在 `encoder/src/compiler.js` 生成
+
+### Q: 如何调试字节码？
+A: 使用编译器的十六进制输出和VM的调试日志
+
+### Q: 作用域如何处理？
+A: 使用作用域栈，进入作用域时push，退出时pop
