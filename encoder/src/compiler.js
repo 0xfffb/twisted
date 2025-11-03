@@ -1,20 +1,27 @@
 // encoder/src/compiler.js
 import { parse } from '@babel/parser'
 import traverse from '@babel/traverse'
+import * as types from '@babel/types'
 
 class Compiler {
     constructor(code) {
         this.code = code
         this.bytecode = []
+        this.opcodes = {
+            Push: 0x00,
+            Pop: 0x01,
+            Add: 0x02,
+            Sub: 0x03,
+            Test: 0x04,
+            StringEncrypt: 0x05,
+        }
         this.variables = new Map()
         this.varIndex = 0
     }
 
     compile() {
-        console.log('🔍 输入代码:', this.code)
         const ast = parse(this.code, { sourceType: 'module' })
-        console.log('🌳 AST Program 节点:', ast.program.body.length, '个子节点')
-        
+
         traverse.default(ast, {
             Program: (path) => {
                 path.node.body.forEach((node, index) => {
@@ -37,11 +44,11 @@ class Compiler {
     compileNode(node) {
         console.log('🔧 编译节点:', node.type)
         switch (node.type) {
-            case 'VariableDeclaration':
+            case "VariableDeclaration":
                 console.log('📋 变量声明:', node.declarations.length, '个声明')
                 this.compileVar(node)
                 break
-            case 'ExpressionStatement':
+            case "ExpressionStatement":
                 console.log('💭 表达式语句')
                 this.compileExpr(node.expression)
                 break
