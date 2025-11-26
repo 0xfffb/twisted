@@ -1,4 +1,4 @@
-import Compiler from './compiler.js'
+import Compiler from './compiler/compiler.js'
 
 !function main() {
     const code = `
