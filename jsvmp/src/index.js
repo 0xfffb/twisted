@@ -1,5 +1,5 @@
 import VM from './vm/vm.js'
-import { toDecimalBytecode } from './utils/bytecode.js'
+import { decimalToBytecode } from './utils/bytecode.js'
 
 (function main() {
     const vm = new VM()
@@ -22,7 +22,7 @@ import { toDecimalBytecode } from './utils/bytecode.js'
     const code = [ 0, 10, 0, 20, 2 ]
     const hexBytecode = [ '0x00', '0x0a', '0x00', '0x14', '0x02' ]
 
-    const bytecode = toDecimalBytecode(hexBytecode)
+    const bytecode = decimalToBytecode(hexBytecode)
     const result = vm.execute(bytecode)
     console.log(result)
 })()
