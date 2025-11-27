@@ -28,44 +28,31 @@ class Compiler {
     compile() {
         const ast = parse(this.code, { sourceType: 'module' })
 
-        traverse.default(ast, {
-            Program: (path) => {
-                path.node.body.forEach((node, index) => {
-                    console.log(`📝 节点 ${index}:`, node.type)
-                    this.compileNode(node)
-                })
+        const visitor = {
+            NumericLiteral: (path) => {
+                this.bytecode.push(this.opcodes.Push, path.node.value)
+            },
+            BinaryExpression: {
+                exit: (path) => {
+                    const operatorMap = {
+                        '+': this.opcodes.Add,
+                        '-': this.opcodes.Sub,
+                        '*': this.opcodes.Mul,
+                        '/': this.opcodes.Div,
+                    }
+
+                    const opcode = operatorMap[path.node.operator]
+                    if (!opcode) {
+                        throw new Error(`Unsupported operator: ${path.node.operator}`)
+                    }
+                    this.bytecode.push(opcode)
+                }
             }
-        })
-        
-        console.log('🎯 最终字节码 (十进制):', this.bytecode)
-        
-        // 添加十六进制输出
-        const hexBytes = this.bytecode.map(b => '0x' + b.toString(16).padStart(2, '0'))
-        console.log('🎯 最终字节码 (十六进制):', hexBytes)
-        console.log('🎯 十六进制字符串:', hexBytes.join(' '))
-        
-        return hexBytes
-    }
-
-    compileNode(node) {
-        switch (node.type) {
-            case "VariableDeclaration":
-                this.compileVariableDeclaration(node)
-                break
-            default:
-                throw new Error(`Unsupported node type: ${node.type}`)
         }
-    }
-
-    compileVariableDeclaration(node) {
-        console.log('🔍 编译变量声明:', node)
-        if (node.declarations) {
-            node.declarations.forEach(declarator => {
-                this.compileVariableDeclaration(declarator.id)
-            })
-        } else {
-            
-        }
+        
+        traverse.default(ast, visitor)
+        console.log("🤖 compiled bytecode.")
+        return this.bytecode
     }
 
 }
