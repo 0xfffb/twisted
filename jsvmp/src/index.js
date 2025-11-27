@@ -20,7 +20,14 @@ import { decimalToBytecode } from './utils/bytecode.js'
     // ]
 
     const code = [ 0, 10, 0, 20, 2 ]
-    const hexBytecode = [ '0x00', '0x0a', '0x00', '0x14', '0x02' ]
+    const hexBytecode = [
+        '0x00', '0x0a',
+        '0x00', '0x14',
+        '0x02', '0x08',
+        '0x00', '0x09',
+        '0x00', '0x0c',
+        '0x00'
+      ]
 
     const bytecode = decimalToBytecode(hexBytecode)
     const result = vm.execute(bytecode)

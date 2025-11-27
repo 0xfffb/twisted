@@ -20,6 +20,10 @@ class VM {
             LocalLoad: 0x09,
             GlobalStore: 0x0A,
             GlobalLoad: 0x0B,
+            Call: 0x0C,
+        }
+        this.functions = {
+            0: (v) => console.log("console.log: ", v)
         }
     }
     
@@ -126,6 +130,20 @@ class VM {
                     const value = this.globals[index]
                     this.stack.push(value)
                     this.pc += 1
+                    break
+                }
+                case this.opcodes.Call: {
+                    const functionIndex = bytecode[this.pc]
+                    this.pc += 1
+                    const args = this.stack.pop()
+                    const func = this.functions[functionIndex]
+                    if (!func) {
+                        throw new Error(`Function not found: ${functionIndex}`)
+                    }
+                    const result = func(args)
+                    if (result) {
+                        this.stack.push(result)
+                    }
                     break
                 }
             }
