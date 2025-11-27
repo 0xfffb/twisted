@@ -120,6 +120,84 @@ node src/index.js
 | `0x0A` | GlobalStore | `index` | 弹出栈顶值，存入全局变量 |
 | `0x0B` | GlobalLoad | `index` | 加载全局变量的值并压入栈 |
 
+## 系统架构 (System Architecture)
+
+```mermaid
+graph TD
+    subgraph "客户端 (Client)"
+        A["用户操作<br>(e.g., Login, Checkout)"]
+        B["JSVMP<br>采集特征 & 生成加密载荷"]
+    end
+
+    subgraph "业务应用服务 (Business Application)"
+        C["业务网关 / BFF"]
+        D["业务逻辑处理<br>(e.g., LoginController)"]
+    end
+
+    subgraph "风控平台 - 同步实时评估 (Real-time)"
+        E["风控 API (/risk/evaluate)"]
+        F["1. 签名/时效性校验"]
+        G["2. 特征处理流水线<br>(解析, 丰富, 打标)"]
+        H_rule["实时决策: 规则引擎"]
+        H_model["实时决策: 主力模型 (XGBoost)"]
+        H_decision["实时决策: 最终决策"]
+        M["实时特征库 (Redis)"]
+    end
+    
+    subgraph "风控平台 - 异步准实时评估 (Near Real-time)"
+        S["消息队列 (Kafka/Pulsar)"]
+        T["异步消费服务"]
+        U["复杂模型<br>(深度学习/图计算)"]
+        V["风险事件中心"]
+    end
+
+    subgraph "风控平台 - 离线训练 (Offline)"
+        N["离线数据仓库 (Data Warehouse)"]
+        O["MLOps / 模型训练平台"]
+    end
+
+    subgraph "业务响应 (Business Response)"
+        P["执行正常业务"]
+        R["直接拒绝"]
+    end
+    
+    A --> B
+    B -- "业务 API 请求" --> C
+    C --> D
+
+    %% --- 实时路径 ---
+    D -- "调用[同步]风控" --> E
+    E --> F
+    F --> G
+    G -- "输入特征" --> H_rule
+    G -- "发送事件" --> S
+    G -- "写入" --> M
+    M -- "读取特征" --> H_model
+    H_rule -- "明确信号" --> H_decision
+    H_rule -- "灰色流量" --> H_model
+    H_model -- "风险评分" --> H_decision
+    H_decision -- "返回决策" --> D
+    
+    %% --- 异步路径 ---
+    S --> T
+    T --> U
+    U --> V
+
+    %% --- 离线路径 ---
+    G --> N
+    N -- "训练数据" --> O
+    O -- "部署模型" --> H_model
+    O -- "部署模型" --> U
+
+    %% ---【核心反馈闭环】---
+    V -- "更新黑名单/规则" --> H_rule
+    V -- "更新用户风险画像" --> M
+
+    %% --- 业务响应 ---
+    D -- "根据决策执行" --> P
+    D -- "根据决策执行" --> R
+```
+
 ## 🛡️ 开发路线图
 
 ### 短期目标
