@@ -14,17 +14,40 @@ Twisted 套件包含三个核心模块，它们可以独立工作，也可以协
     -   **输入**: JavaScript 代码
     -   **输出**: 字节码序列
 
-3.  **`jsvmp` (虚拟机)**: 一个用 JavaScript 实现的轻量级栈式虚拟机，负责解释和执行由 `compiler` 生成的字节码。
+3.  **`vm` (虚拟机)**: 一个用 JavaScript 实现的轻量级栈式虚拟机，负责解释和执行由 `compiler` 生成的字节码。
     -   **输入**: 字节码序列
     -   **输出**: 代码执行结果
 
-## 🏗️ 项目结构
+## 🏗️ 项目结构（当前代码架构）
 
-```
+仓库已收敛为单一包结构，核心代码集中在 `src/` 目录，下游通过统一的编译管线工作：
+
+```text
 twisted/
-├── obfuscator/       # JavaScript 代码混淆器
-├── compiler/         # JS-to-Bytecode 编译器
-└── jsvmp/            # JavaScript 虚拟机 (VM)
+├── src/
+│   ├── constant.js          # Opcode / Header 等常量定义
+│   ├── index.js             # 示例入口，串联 Compiler → Assembler → VM
+│   ├── compiler/
+│   │   └── compiler.js      # JS 源码 → IR (Instruction[]) 的编译器
+│   ├── assembler/
+│   │   └── assembler.js     # IR → Bytecode 的汇编器（处理 Header、字符串池、DYN_ADDR 回填）
+│   ├── vm/
+│   │   └── vm.js            # 栈式虚拟机，解释执行字节码
+│   └── obfuscator/
+│       ├── base.js          # 混淆器基础类
+│       └── passes/          # IR 级混淆 Pass（控制流/垃圾指令等，可插拔）
+└── docs/
+    └── ir.md                # Dict IR 规范文档（opcode + args[{type,value}] + Block）
+```
+
+整体编译/执行流水线为：
+
+```mermaid
+graph LR
+  A[JavaScript 源代码] --> B[Compiler<br/>AST → IR]
+  B --> C[Obfuscation Passes<br/>在 IR 上做混淆/FLA]
+  C --> D[Assembler<br/>IR → Bytecode]
+  D --> E[JS VM<br/>解释执行字节码]
 ```
 
 ## 🚀 快速开始
@@ -46,7 +69,7 @@ cd ../compiler
 npm install
 
 # 安装虚拟机依赖
-cd ../jsvmp
+cd ../vm
 npm install
 ```
 
@@ -73,16 +96,16 @@ node src/index.js ../obfuscator/files/test.ollvm.js
 编译器会输出字节码并写入 `.bin` 文件。
 
 ### 3. 在 VM 中执行字节码
-将生成的字节码复制到 `jsvmp` 中进行测试和执行。
+将生成的字节码复制到 VM 入口中进行测试和执行。
 ```bash
-cd jsvmp
+cd vm
 # (手动将字节码数组粘贴到 src/index.js 中)
 node src/index.js
 ```
 
 ## 🔧 核心功能
 
-### `jsvmp` (虚拟机)
+### `vm` (虚拟机)
 - ✅ **栈式虚拟机**: 基于栈的计算模型。
 - ✅ **PC 管理**: 使用程序计数器跟踪执行。
 - ✅ **变量存储**: 支持局部和全局变量存储。
@@ -101,9 +124,9 @@ node src/index.js
 
 ## 📊 字节码格式说明
 
-`jsvmp` 使用单字节操作码（Opcode），后面可以跟零个或多个操作数（Operand）。
+虚拟机使用单字节操作码（Opcode），后面可以跟零个或多个操作数（Operand）。
 
-### `jsvmp` 当前支持的指令集
+### 虚拟机当前支持的指令集
 
 | Opcode | 指令 | 操作数 | 描述 |
 |:---:|:---|:---:|:---|
@@ -126,7 +149,7 @@ node src/index.js
 graph TD
     subgraph "客户端 (Client)"
         A["用户操作<br>(e.g., Login, Checkout)"]
-        B["JSVMP<br>采集特征 & 生成加密载荷"]
+        B["VM<br>采集特征 & 生成加密载荷"]
     end
 
     subgraph "业务应用服务 (Business Application)"
@@ -223,7 +246,7 @@ Twisted 采用分层、分阶段的混淆策略，以实现最高强度的代码
 
 ### 3. VM 运行时的自我保护
 
-保护链的最后一环，也是最关键的一环，是对 VM 本身进行保护。在最终打包发布时，`jsvmp` 的 JavaScript 源代码也会经过一次彻底的传统JS混淆，防止攻击者通过分析VM来逆向字节码。这形成了一个完整的保护闭环。
+保护链的最后一环，也是最关键的一环，是对 VM 本身进行保护。在最终打包发布时，VM 的 JavaScript 源代码也会经过一次彻底的传统 JS 混淆，防止攻击者通过分析 VM 来逆向字节码。这形成了一个完整的保护闭环。
 
 ## 🛡️ 开发路线图
 

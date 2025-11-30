@@ -1,4 +1,4 @@
-const opcode = {
+const OPCODE = {
     Push: 0x00,
     Pop: 0x01,
     Add: 0x02,
@@ -14,4 +14,8 @@ const opcode = {
     Call: 0x0C,
 }
 
-export { opcode }
+const HEADER = {
+
+}
+
+export { OPCODE, HEADER }
