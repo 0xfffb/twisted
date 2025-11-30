@@ -2,26 +2,14 @@
 import { parse } from '@babel/parser'
 import traverse from '@babel/traverse'
 import * as types from '@babel/types'
+import { opcode } from '../constant.js'
 
 class Compiler {
-    constructor(code) {
-        this.code = code
+    constructor(source) {
+        this.ast = this.parse(source)
+        this.ir = []
         this.bytecode = []
-        this.opcodes = {
-            Push: 0x00,
-            Pop: 0x01,
-            Add: 0x02,
-            Sub: 0x03,
-            Mul: 0x04,
-            Div: 0x05,
-            Jmp: 0x06,
-            JmpIf: 0x07,
-            LocalStore: 0x08,
-            LocalLoad: 0x09,
-            GlobalStore: 0x0A,
-            GlobalLoad: 0x0B,
-            Call: 0x0C,
-        }
+        this.opcode = opcode
         this.variables = new Map()
         this.varIndex = 0
         this.functions = {
@@ -29,8 +17,12 @@ class Compiler {
         }
     }
 
+    parse(source) {
+        const ast = parse(source, { sourceType: 'module' })
+        return ast
+    }
+
     compile() {
-        const ast = parse(this.code, { sourceType: 'module' })
 
         const visitor = {
             CallExpression: {
@@ -41,7 +33,7 @@ class Compiler {
                         types.isIdentifier(callee.object, { name: 'console' }) &&
                         types.isIdentifier(callee.property, { name: 'log' })
                       ) {
-                        this.bytecode.push(this.opcodes.Call, this.functions['console.log'])
+                        this.bytecode.push(this.opcode.Call, this.functions['console.log'])
                       }
                 }
             },
@@ -72,22 +64,20 @@ class Compiler {
                     const varName = path.node.name
                     if (this.variables.has(varName)) {
                         const index = this.variables.get(varName)
-                        this.bytecode.push(this.opcodes.LocalLoad, index)
-                    } else {
-                        throw new ReferenceError(`${varName} is not defined`)
+                        this.bytecode.push(this.opcode.LocalLoad, index)
                     }
                 }
             },
             NumericLiteral: (path) => {
-                this.bytecode.push(this.opcodes.Push, path.node.value)
+                this.bytecode.push(this.opcode.Push, path.node.value)
             },
             BinaryExpression: {
                 exit: (path) => {
                     const operatorMap = {
-                        '+': this.opcodes.Add,
-                        '-': this.opcodes.Sub,
-                        '*': this.opcodes.Mul,
-                        '/': this.opcodes.Div,
+                        '+': this.opcode.Add,
+                        '-': this.opcode.Sub,
+                        '*': this.opcode.Mul,
+                        '/': this.opcode.Div,
                     }
 
                     const opcode = operatorMap[path.node.operator]
@@ -102,18 +92,18 @@ class Compiler {
                     const varName = path.node.declarations[0].id.name
                     if (this.variables.has(varName)) {
                         const index = this.variables.get(varName)
-                        this.bytecode.push(this.opcodes.LocalStore, index)
+                        this.bytecode.push(this.opcode.LocalStore, index)
                     } else {
                         const index = this.varIndex++
                         this.variables.set(varName, index)
-                        this.bytecode.push(this.opcodes.LocalStore, index)
+                        this.bytecode.push(this.opcode.LocalStore, index)
                     }
                 }
             }
         }
         
         traverse.default(ast, visitor)
-        console.log("🤖 compiled bytecode.")
+        console.log("🤖 Compiled intermediate representation.")
         return this.bytecode
     }
 
