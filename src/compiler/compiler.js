@@ -21,11 +21,16 @@ class Compiler {
 
     visitor() {
         const visitor = {
-            VariableDeclaration: (path) => {
-                console.log(path.node.type)
+            VariableDeclaration: {
+                enter: (path) => {
+                    console.log(path.node.type)
+                }
+                
             },
-            Identifier: (path) => {
-                console.log(path.node.name)
+            Identifier: {
+                enter: (path) => {
+                    console.log(path.node.name)
+                }
             },
         }
         return visitor
