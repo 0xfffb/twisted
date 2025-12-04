@@ -1,7 +1,7 @@
 import Compiler from './compiler/compiler.js'
 import { OPCODE } from './constant.js'
 
-!function main() {
+function main() {
     const code = `
 let a = 10 + 20
 console.log(a)
@@ -10,5 +10,6 @@ console.log(a)
     const ir = compiler.compile()
     console.dir(ir, { depth: null });
 
-}()
+}
 
+main()
