@@ -6,6 +6,9 @@ class Compiler {
     constructor(source, opcode) {
         this.ast = this.parse(source)
         this.opcode = opcode
+        this.ir = []
+        this.variables = new Map()
+        this.variableIndex = 0
         this.dependencies = ['console']
     }
 
@@ -17,19 +20,40 @@ class Compiler {
     compile() {
         traverse.default(this.ast, this.visitor())
         console.log("🤖 Compiled intermediate representation.")
-        return this.bytecode
+        return this.ir
     }
 
     visitor() {
         const visitor = {
             VariableDeclaration: {
                 enter: (path) => {
-                    console.log(path.node.type)
+                    console.log(`🤖 VariableDeclaration: ${path.node.type}`)
                 }
                 
             },
+            BinaryExpression: {
+                exit: (path) => {
+                    const operatorMap = {
+                        '+': this.opcode.Add,
+                        '-': this.opcode.Sub,
+                        '*': this.opcode.Mul,
+                        '/': this.opcode.Div,
+                    }
+                    this.ir.push({
+                        opcode: operatorMap[path.node.operator],
+                    })
+                }
+            },
+            NumericLiteral: {
+                exit: (path) => {
+                    this.ir.push({
+                        opcode: this.opcode.Push,
+                        args: [{ type: 0, value: path.node.value }]
+                    })
+                }
+            },
             Identifier: {
-                enter: (path) => {
+                exit: (path) => {
                     if (this.dependencies.includes(path.node.name)) {
                         console.log(`🤖 Dependency found: ${path.node.name}`)
                         return
@@ -38,7 +62,10 @@ class Compiler {
                         console.log(`🤖 String for dependency found: ${path.node.name}`)
                         return
                     }
-                    console.log(path.node.name)
+                    this.ir.push({
+                        opcode: this.opcode.Push,
+                        args: [{ type: 0, value: path.node.name }]
+                    })
                 }
             },
         }
