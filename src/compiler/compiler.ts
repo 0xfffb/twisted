@@ -4,7 +4,6 @@ import type { NodePath, Visitor } from "@babel/traverse";
 import type { ParseResult } from "@babel/parser";
 
 import type { VariableDeclarator, Identifier, Function } from "@babel/types";
-import { todo } from "node:test";
 
 interface Instruction {
 	opcode: number;
@@ -43,7 +42,6 @@ class Compiler {
 		return {
 			Function: {
 				enter: (path: NodePath<Function>) => {
-                    todo("Function");
 				},
 			},
 			VariableDeclarator: {
