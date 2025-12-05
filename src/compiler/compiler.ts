@@ -6,9 +6,15 @@ import type { ParseResult } from "@babel/parser";
 import { type VariableDeclarator, type Identifier, type Function, NumericLiteral, BinaryExpression } from "@babel/types";
 import { OPCODE } from "../constant.js";
 
+interface Arg {
+	type: number;
+	value?: any;
+}
+
 interface Instruction {
 	opcode: OPCODE;
-	args?: any[];
+	args: Arg[];
+    tags: string[]; 
 }
 
 interface ScopeInfo {
@@ -54,7 +60,7 @@ class Compiler {
 						if (!this.globals.has(varName)) {
                             this.globals.set(varName, this.globalIndex);
                             console.log("🤖 VariableDeclarator Global variable: ", varName, this.globalIndex);
-                            this.ir.push({ opcode: OPCODE.GlobalStore, args: [this.globalIndex] });
+                            this.ir.push({ opcode: OPCODE.GlobalStore, args: [{ type: 1, value: this.globalIndex }], tags: [] });
                             this.globalIndex++;
 						}
 					} else {
@@ -71,7 +77,7 @@ class Compiler {
 					if (binding.scope.path.isProgram()) {
                         const index = this.globals.get(varName);
                         console.log("🤖 Identifier Global variable: ", varName, index);
-                        this.ir.push({ opcode: OPCODE.GlobalLoad, args: [index] });
+                        this.ir.push({ opcode: OPCODE.GlobalLoad, args: [{ type: 1, value: index }], tags: [] });
 					}
 				},
 			},
@@ -86,7 +92,7 @@ class Compiler {
                     };
                     const operator = operatorMap[path.node.operator];
                     if (operator) {
-                        this.ir.push({ opcode: operator, args: [] });
+                        this.ir.push({ opcode: operator, args: [{ type: 0 }], tags: [] });
                     } else {
                         throw new Error(`🤖 Unknown operator: ${path.node.operator}`);
                     }
@@ -95,7 +101,7 @@ class Compiler {
             NumericLiteral: {
                 exit: (path: NodePath<NumericLiteral>) => {
                     console.log("🤖 NumberLiteral: ", path.node.value);
-                    this.ir.push({ opcode: OPCODE.Push, args: [path.node.value] });
+                    this.ir.push({ opcode: OPCODE.Push, args: [{ type: 0, value: path.node.value }], tags: [] });
                 }
             }
 		};
