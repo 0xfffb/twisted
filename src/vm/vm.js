@@ -1,12 +1,9 @@
-
-
 class VM {
-
     constructor() {
-        this.stack = []
-        this.locals = []
-        this.globals = []
-        this.pc = 0
+        this.stack = [];
+        this.locals = [];
+        this.globals = [];
+        this.pc = 0;
         this.opcodes = {
             Push: 0x00,
             Pop: 0x01,
@@ -18,137 +15,137 @@ class VM {
             JmpIf: 0x07,
             LocalStore: 0x08,
             LocalLoad: 0x09,
-            GlobalStore: 0x0A,
-            GlobalLoad: 0x0B,
-            Call: 0x0C,
-        }
+            GlobalStore: 0x0a,
+            GlobalLoad: 0x0b,
+            Call: 0x0c,
+        };
         this.functions = {
-            0: (v) => console.log("console.log: ", v)
-        }
+            0: (v) => console.log('console.log: ', v),
+        };
     }
-    
+
     execute(bytecode) {
-        this.stack = []
-        this.locals = []
-        this.globals = []
-        this.pc = 0
+        this.stack = [];
+        this.locals = [];
+        this.globals = [];
+        this.pc = 0;
         while (this.pc < bytecode.length) {
-            const opcode = bytecode[this.pc]
+            const opcode = bytecode[this.pc];
             switch (opcode) {
                 // stack commands
                 case this.opcodes.Push:
-                    this.stack.push(bytecode[this.pc + 1])
-                    this.pc += 1
-                    break
+                    this.stack.push(bytecode[this.pc + 1]);
+                    this.pc += 1;
+                    break;
                 case this.opcodes.Pop:
-                    this.stack.pop()
-                    break
+                    this.stack.pop();
+                    break;
                 // arithmetic commands
                 case this.opcodes.Add:
-                    const a = this.stack.pop()
-                    const b = this.stack.pop()
-                    if (typeof a === 'number' && typeof b === 'number') {   
-                        this.stack.push(a + b)
+                    const a = this.stack.pop();
+                    const b = this.stack.pop();
+                    if (typeof a === 'number' && typeof b === 'number') {
+                        this.stack.push(a + b);
                     } else {
-                        throw new Error('Invalid operands for Add')
+                        throw new Error('Invalid operands for Add');
                     }
-                    break
+                    break;
                 case this.opcodes.Sub: {
-                    const a = this.stack.pop()
-                    const b = this.stack.pop()
-                    if (typeof a === 'number' && typeof b === 'number') {   
-                        this.stack.push(a - b)
+                    const a = this.stack.pop();
+                    const b = this.stack.pop();
+                    if (typeof a === 'number' && typeof b === 'number') {
+                        this.stack.push(a - b);
                     } else {
-                        throw new Error('Invalid operands for Sub')
+                        throw new Error('Invalid operands for Sub');
                     }
-                    break
-                }   
+                    break;
+                }
                 case this.opcodes.Mul: {
-                    const a = this.stack.pop()
-                    const b = this.stack.pop()
-                    if (typeof a === 'number' && typeof b === 'number') {   
-                        this.stack.push(a * b)
+                    const a = this.stack.pop();
+                    const b = this.stack.pop();
+                    if (typeof a === 'number' && typeof b === 'number') {
+                        this.stack.push(a * b);
                     } else {
-                        throw new Error('Invalid operands for Mul')
+                        throw new Error('Invalid operands for Mul');
                     }
-                    break
+                    break;
                 }
                 case this.opcodes.Div: {
-                    const a = this.stack.pop()
-                    const b = this.stack.pop()
-                    if (typeof a === 'number' && typeof b === 'number') {   
-                        this.stack.push(a / b)
+                    const a = this.stack.pop();
+                    const b = this.stack.pop();
+                    if (typeof a === 'number' && typeof b === 'number') {
+                        this.stack.push(a / b);
                     } else {
-                        throw new Error('Invalid operands for Div')
+                        throw new Error('Invalid operands for Div');
                     }
-                    break
+                    break;
                 }
                 // control flow commands
                 case this.opcodes.Jmp: {
-                    const target = bytecode[this.pc + 1]
-                    this.pc = target
-                    break
+                    const target = bytecode[this.pc + 1];
+                    this.pc = target;
+                    break;
                 }
                 case this.opcodes.JmpIf: {
-                    const condition = this.stack.pop()
-                    const target = bytecode[this.pc + 1]
+                    const condition = this.stack.pop();
+                    const target = bytecode[this.pc + 1];
                     if (condition) {
-                        this.pc = target
+                        this.pc = target;
                     } else {
-                        this.pc += 1
+                        this.pc += 1;
                     }
-                    break
+                    break;
                 }
                 // local commands
                 case this.opcodes.LocalStore: {
-                    const value = this.stack.pop()
-                    const index = bytecode[this.pc + 1]
-                    this.locals[index] = value
-                    this.pc += 1
-                    break
+                    const value = this.stack.pop();
+                    const index = bytecode[this.pc + 1];
+                    this.locals[index] = value;
+                    this.pc += 1;
+                    break;
                 }
                 case this.opcodes.LocalLoad: {
-                    const index = bytecode[this.pc + 1]
-                    const value = this.locals[index]
-                    this.stack.push(value)
-                    this.pc += 1
-                    break
+                    const index = bytecode[this.pc + 1];
+                    const value = this.locals[index];
+                    this.stack.push(value);
+                    this.pc += 1;
+                    break;
                 }
-                
+
                 // global commands
                 case this.opcodes.GlobalStore: {
-                    const value = this.stack.pop()
-                    const index = bytecode[this.pc + 1]
-                    this.globals[index] = value
-                    this.pc += 1
-                    break
+                    const value = this.stack.pop();
+                    const index = bytecode[this.pc + 1];
+                    this.globals[index] = value;
+                    this.pc += 1;
+                    break;
                 }
                 case this.opcodes.GlobalLoad: {
-                    const index = bytecode[this.pc + 1]
-                    const value = this.globals[index]
-                    this.stack.push(value)
-                    this.pc += 1
-                    break
+                    const index = bytecode[this.pc + 1];
+                    const value = this.globals[index];
+                    this.stack.push(value);
+                    this.pc += 1;
+                    break;
                 }
                 case this.opcodes.Call: {
-                    const functionIndex = bytecode[this.pc + 1]
-                    this.pc += 1
-                    const args = this.stack.pop()
-                    const func = this.functions[functionIndex]
+                    const functionIndex = bytecode[this.pc + 1];
+                    this.pc += 1;
+                    const args = this.stack.pop();
+                    const func = this.functions[functionIndex];
                     if (!func) {
-                        throw new Error(`Function not found: ${functionIndex}`)
+                        throw new Error(`Function not found: ${functionIndex}`);
                     }
-                    const result = func(args)
+                    const result = func(args);
                     if (result) {
-                        this.stack.push(result)
+                        this.stack.push(result);
                     }
-                    break
+                    break;
                 }
             }
-            this.pc += 1
+            this.pc += 1;
         }
-        return this.stack[this.stack.length - 1]
+        return this.stack[this.stack.length - 1];
     }
 }
 
-export default VM
+export default VM;

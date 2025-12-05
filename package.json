@@ -8,7 +8,9 @@
   "main": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "format": "prettier --write \"src/**/*.{js,ts}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js}\""
   },
   "dependencies": {
     "@babel/generator": "^7.28.3",
@@ -19,7 +21,8 @@
   "devDependencies": {
     "@types/babel__generator": "^7.6.8",
     "@types/babel__traverse": "^7.20.5",
-    "@types/node": "^20.14.9",
+    "@types/node": "^24.10.1",
+    "prettier": "^3.7.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

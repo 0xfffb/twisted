@@ -1,4 +1,1 @@
-
-
-class Instruction {
-}
+class Instruction {}

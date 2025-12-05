@@ -9,13 +9,11 @@ const OPCODE = {
     JmpIf: 0x07,
     LocalStore: 0x08,
     LocalLoad: 0x09,
-    GlobalStore: 0x0A,
-    GlobalLoad: 0x0B,
-    Call: 0x0C,
-}
+    GlobalStore: 0x0a,
+    GlobalLoad: 0x0b,
+    Call: 0x0c,
+};
 
-const HEADER = {
+const HEADER = {};
 
-}
-
-export { OPCODE, HEADER }
+export { OPCODE, HEADER };
