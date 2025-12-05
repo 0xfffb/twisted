@@ -7,8 +7,7 @@ import type { ParseResult } from '@babel/parser';
 import type {
   VariableDeclarator,
   Identifier,
-  Function as FunctionNode,
-  Program,
+  Function,
 } from '@babel/types';
 
 interface Instruction {
@@ -47,7 +46,7 @@ class Compiler {
   visitor(): Visitor {
     return {
       Function: {
-        enter: (path: NodePath<FunctionNode>) => {
+        enter: (path: NodePath<Function>) => {
           const scopeId = path.scope.uid;
           if (!this.functionScopes.has(scopeId)) {
             const scopeInfo: ScopeInfo = { locals: new Map(), localIndex: 0 };
