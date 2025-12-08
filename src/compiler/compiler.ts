@@ -5,29 +5,13 @@ import type { ParseResult } from "@babel/parser";
 
 import { type VariableDeclarator, type Identifier, type Function, NumericLiteral, BinaryExpression } from "@babel/types";
 import { OPCODE } from "../constant.js";
-
-interface Arg {
-	type: number;
-	value?: any;
-}
-
-interface Instruction {
-	opcode: OPCODE;
-	args: Arg[];
-    tags: string[]; 
-}
-
-interface ScopeInfo {
-	locals: Map<string, number>;
-	localIndex: number;
-}
+import { createInstruction, type Instruction } from "./instruction.js";
 
 class Compiler {
 	private ast: ParseResult;
 	public ir: Instruction[];
 	private globals: Map<string, number>;
 	private globalIndex: number;
-	private functionScopes: Map<number, ScopeInfo>;
 	private dependencies: string[];
 
 	constructor(source: string) {
@@ -35,7 +19,6 @@ class Compiler {
 		this.ir = [];
 		this.globals = new Map();
 		this.globalIndex = 0;
-		this.functionScopes = new Map();
         this.dependencies = ["window", "console"];
 	}
 
@@ -60,7 +43,7 @@ class Compiler {
 						if (!this.globals.has(varName)) {
                             this.globals.set(varName, this.globalIndex);
                             console.log("🤖 VariableDeclarator Global variable: ", varName, this.globalIndex);
-                            this.ir.push({ opcode: OPCODE.GlobalStore, args: [{ type: 1, value: this.globalIndex }], tags: [] });
+                            this.ir.push(createInstruction(OPCODE.GlobalStore, [{ type: 1, value: this.globalIndex }], []));
                             this.globalIndex++;
 						}
 					} else {
@@ -77,7 +60,7 @@ class Compiler {
 					if (binding.scope.path.isProgram()) {
                         const index = this.globals.get(varName);
                         console.log("🤖 Identifier Global variable: ", varName, index);
-                        this.ir.push({ opcode: OPCODE.GlobalLoad, args: [{ type: 1, value: index }], tags: [] });
+                        this.ir.push(createInstruction(OPCODE.GlobalLoad, [{ type: 1, value: index }], []));
 					}
 				},
 			},
@@ -92,7 +75,7 @@ class Compiler {
                     };
                     const operator = operatorMap[path.node.operator];
                     if (operator) {
-                        this.ir.push({ opcode: operator, args: [{ type: 0 }], tags: [] });
+                        this.ir.push(createInstruction(operator, [{ type: 0, value: undefined }], []));
                     } else {
                         throw new Error(`🤖 Unknown operator: ${path.node.operator}`);
                     }
@@ -101,7 +84,7 @@ class Compiler {
             NumericLiteral: {
                 exit: (path: NodePath<NumericLiteral>) => {
                     console.log("🤖 NumberLiteral: ", path.node.value);
-                    this.ir.push({ opcode: OPCODE.Push, args: [{ type: 0, value: path.node.value }], tags: [] });
+                    this.ir.push(createInstruction(OPCODE.Push, [{ type: 0, value: path.node.value }], []));
                 }
             }
 		};

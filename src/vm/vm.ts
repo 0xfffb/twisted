@@ -1,30 +1,24 @@
+import { OPCODE } from "../constant.js";
+
 class VM {
+
+	private stack: any[];
+	private locals: any[];
+	private globals: any[];
+	private pc: number;
+	private functions: { [key: number]: (v: any) => void };
+
 	constructor() {
 		this.stack = [];
 		this.locals = [];
 		this.globals = [];
 		this.pc = 0;
-		this.opcodes = {
-			Push: 0x00,
-			Pop: 0x01,
-			Add: 0x02,
-			Sub: 0x03,
-			Mul: 0x04,
-			Div: 0x05,
-			Jmp: 0x06,
-			JmpIf: 0x07,
-			LocalStore: 0x08,
-			LocalLoad: 0x09,
-			GlobalStore: 0x0a,
-			GlobalLoad: 0x0b,
-			Call: 0x0c,
-		};
 		this.functions = {
 			0: (v) => console.log("console.log: ", v),
 		};
 	}
 
-	execute(bytecode) {
+	execute(bytecode: number[]) {
 		this.stack = [];
 		this.locals = [];
 		this.globals = [];
@@ -33,15 +27,15 @@ class VM {
 			const opcode = bytecode[this.pc];
 			switch (opcode) {
 				// stack commands
-				case this.opcodes.Push:
+				case OPCODE.Push:
 					this.stack.push(bytecode[this.pc + 1]);
 					this.pc += 1;
 					break;
-				case this.opcodes.Pop:
+				case OPCODE.Pop:
 					this.stack.pop();
 					break;
 				// arithmetic commands
-				case this.opcodes.Add:
+				case OPCODE.Add:
 					const a = this.stack.pop();
 					const b = this.stack.pop();
 					if (typeof a === "number" && typeof b === "number") {
@@ -50,7 +44,7 @@ class VM {
 						throw new Error("Invalid operands for Add");
 					}
 					break;
-				case this.opcodes.Sub: {
+				case OPCODE.Sub: {
 					const a = this.stack.pop();
 					const b = this.stack.pop();
 					if (typeof a === "number" && typeof b === "number") {
@@ -60,7 +54,7 @@ class VM {
 					}
 					break;
 				}
-				case this.opcodes.Mul: {
+				case OPCODE.Mul: {
 					const a = this.stack.pop();
 					const b = this.stack.pop();
 					if (typeof a === "number" && typeof b === "number") {
@@ -70,7 +64,7 @@ class VM {
 					}
 					break;
 				}
-				case this.opcodes.Div: {
+				case OPCODE.Div: {
 					const a = this.stack.pop();
 					const b = this.stack.pop();
 					if (typeof a === "number" && typeof b === "number") {
@@ -81,12 +75,12 @@ class VM {
 					break;
 				}
 				// control flow commands
-				case this.opcodes.Jmp: {
+				case OPCODE.Jmp: {
 					const target = bytecode[this.pc + 1];
 					this.pc = target;
 					break;
 				}
-				case this.opcodes.JmpIf: {
+				case OPCODE.JmpIf: {
 					const condition = this.stack.pop();
 					const target = bytecode[this.pc + 1];
 					if (condition) {
@@ -97,14 +91,14 @@ class VM {
 					break;
 				}
 				// local commands
-				case this.opcodes.LocalStore: {
+				case OPCODE.LocalStore: {
 					const value = this.stack.pop();
 					const index = bytecode[this.pc + 1];
 					this.locals[index] = value;
 					this.pc += 1;
 					break;
 				}
-				case this.opcodes.LocalLoad: {
+				case OPCODE.LocalLoad: {
 					const index = bytecode[this.pc + 1];
 					const value = this.locals[index];
 					this.stack.push(value);
@@ -113,21 +107,21 @@ class VM {
 				}
 
 				// global commands
-				case this.opcodes.GlobalStore: {
+				case OPCODE.GlobalStore: {
 					const value = this.stack.pop();
 					const index = bytecode[this.pc + 1];
 					this.globals[index] = value;
 					this.pc += 1;
 					break;
 				}
-				case this.opcodes.GlobalLoad: {
+				case OPCODE.GlobalLoad: {
 					const index = bytecode[this.pc + 1];
 					const value = this.globals[index];
 					this.stack.push(value);
 					this.pc += 1;
 					break;
 				}
-				case this.opcodes.Call: {
+				case OPCODE.Call: {
 					const functionIndex = bytecode[this.pc + 1];
 					this.pc += 1;
 					const args = this.stack.pop();
@@ -136,7 +130,7 @@ class VM {
 						throw new Error(`Function not found: ${functionIndex}`);
 					}
 					const result = func(args);
-					if (result) {
+					if (result !== undefined) {
 						this.stack.push(result);
 					}
 					break;
