@@ -12,7 +12,7 @@ const enum OPCODE {
 	GlobalStore = 0x0a,
 	GlobalLoad = 0x0b,
 	Call = 0x0c,
-};
+}
 
 const enum HEADER {
 	MagicNumber = 0x4a53,

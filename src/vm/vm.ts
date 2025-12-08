@@ -1,7 +1,6 @@
 import { OPCODE } from "../constant.js";
 
 class VM {
-
 	private stack: any[];
 	private locals: any[];
 	private globals: any[];
