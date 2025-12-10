@@ -11,7 +11,7 @@ import {
 	BinaryExpression,
 } from "@babel/types";
 import { Opcode } from "../constant.js";
-import { createInstruction, type Instruction } from "./instruction.js";
+import { ArgKind, createInstruction, type Instruction } from "./instruction.js";
 
 class Compiler {
 	private ast: ParseResult;
@@ -40,44 +40,44 @@ class Compiler {
 				enter: (path: NodePath<Function>) => {},
 			},
 			VariableDeclarator: {
-				exit: (path: NodePath<VariableDeclarator>) => {
-					const varName = (path.node.id as Identifier).name;
-					const binding = path.scope.getBinding(varName);
-					if (!binding) return;
-					if (binding.scope.path.isProgram()) {
-						if (!this.globals.has(varName)) {
-							this.globals.set(varName, this.globalIndex);
-							console.log(
-								"🤖 VariableDeclarator Global variable: ",
-								varName,
-								this.globalIndex,
-							);
-							this.pushIr(
-								createInstruction(
-									Opcode.GlobalStore
-								),
-							);
-							this.globalIndex++;
-						}
-					} else {
-						console.log("🤖 VariableDeclarator Local variable: ", varName);
-					}
-				},
+				// exit: (path: NodePath<VariableDeclarator>) => {
+				// 	const varName = (path.node.id as Identifier).name;
+				// 	const binding = path.scope.getBinding(varName);
+				// 	if (!binding) return;
+				// 	if (binding.scope.path.isProgram()) {
+				// 		if (!this.globals.has(varName)) {
+				// 			this.globals.set(varName, this.globalIndex);
+				// 			console.log(
+				// 				"🤖 VariableDeclarator Global variable: ",
+				// 				varName,
+				// 				this.globalIndex,
+				// 			);
+				// 			this.pushIr(
+				// 				createInstruction(
+				// 					Opcode.GlobalStore
+				// 				),
+				// 			);
+				// 			this.globalIndex++;
+				// 		}
+				// 	} else {
+				// 		console.log("🤖 VariableDeclarator Local variable: ", varName);
+				// 	}
+				// },
 			},
 			Identifier: {
-				enter: (path: NodePath<Identifier>) => {
-					if (!path.isReferencedIdentifier()) return;
-					const varName = path.node.name;
-					const binding = path.scope.getBinding(varName);
-					if (!binding) return;
-					if (binding.scope.path.isProgram()) {
-						const index = this.globals.get(varName);
-						console.log("🤖 Identifier Global variable: ", varName, index);
-						this.pushIr(
-							createInstruction(Opcode.GlobalLoad),
-						);
-					}
-				},
+				// enter: (path: NodePath<Identifier>) => {
+				// 	if (!path.isReferencedIdentifier()) return;
+				// 	const varName = path.node.name;
+				// 	const binding = path.scope.getBinding(varName);
+				// 	if (!binding) return;
+				// 	if (binding.scope.path.isProgram()) {
+				// 		const index = this.globals.get(varName);
+				// 		console.log("🤖 Identifier Global variable: ", varName, index);
+				// 		this.pushIr(
+				// 			createInstruction(Opcode.GlobalLoad),
+				// 		);
+				// 	}
+				// },
 			},
 			BinaryExpression: {
 				exit: (path: NodePath<BinaryExpression>) => {
@@ -102,7 +102,7 @@ class Compiler {
 				exit: (path: NodePath<NumericLiteral>) => {
 					console.log("🤖 NumberLiteral: ", path.node.value);
 					this.pushIr(
-						createInstruction(Opcode.Push, [{ kind: 0, value: path.node.value }]),
+						createInstruction(Opcode.Push, [{ kind: ArgKind.Number, value: path.node.value }]),
 					);
 				},
 			},

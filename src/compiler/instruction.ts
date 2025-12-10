@@ -1,7 +1,9 @@
 import { Opcode } from "../constant.js";
 
 enum ArgKind {
-
+	Undefined = 0,
+	String = 1,
+	Number = 2,
 }
 
 interface Arg {
@@ -38,4 +40,4 @@ function createInstruction(opcode: Opcode, args: Arg[] | null = null, tags: stri
 	};
 }
 
-export { Instruction, Arg, createInstruction };
+export { Instruction, Arg, createInstruction, ArgKind };

@@ -1,5 +1,4 @@
-import type { Instruction } from "../compiler/instruction.js";
-import { Opcode } from "../constant.js";
+import { ArgKind, type Instruction } from "../compiler/instruction.js";
 
 class Assembler {
 	private bytecode: number[] = [];
@@ -9,17 +8,32 @@ class Assembler {
 
 	assemble(ir: Instruction[]): number[] {
         ir.forEach(instruction => {
-            switch (instruction.opcode) {
-                case Opcode.Push:
-                    this.bytecode.push(instruction.args[0].kind, ...instruction.args[0].value);
+            this.push(instruction);
+        });
+		return this.bytecode;
+	}
+
+    private push(instruction: Instruction) {
+        this.bytecode.push(instruction.opcode);
+        instruction.args.forEach(arg => {
+            switch (arg.kind) {
+                case ArgKind.Number:
+                    this.bytecode.push(arg.value);
                     break;
+                case ArgKind.String:
+                    this.bytecode.push(arg.value);
+                    break;
+                case ArgKind.Undefined:
+                    throw new Error(`Undefined arg kind: ${arg.kind}`);
                 default:
-                    throw new Error(`Unknown opcode: ${instruction.opcode}`);
+                    throw new Error(`Unknown arg kind: ${arg.kind}`);
             }
         });
+    }
 
-		return ir.map(instruction => instruction.opcode);
-	}
+    private toByteArray(number: number): number[] {
+        return number.toString(16).padStart(2, "0").split("").map(char => parseInt(char, 16));
+    }
 }
 
 export default Assembler;
