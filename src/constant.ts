@@ -7,11 +7,9 @@ const enum Opcode {
 	Div = 0x05,
 	Jmp = 0x06,
 	JmpIf = 0x07,
-	LocalStore = 0x08,
-	LocalLoad = 0x09,
-	GlobalStore = 0x0a,
-	GlobalLoad = 0x0b,
-	Call = 0x0c,
+	Store = 0x08,
+	Load = 0x09,
+	RuntimeCall = 0x0c,
 }
 
 export { Opcode };

@@ -40,29 +40,29 @@ class Compiler {
 				enter: (path: NodePath<Function>) => {},
 			},
 			VariableDeclarator: {
-				// exit: (path: NodePath<VariableDeclarator>) => {
-				// 	const varName = (path.node.id as Identifier).name;
-				// 	const binding = path.scope.getBinding(varName);
-				// 	if (!binding) return;
-				// 	if (binding.scope.path.isProgram()) {
-				// 		if (!this.globals.has(varName)) {
-				// 			this.globals.set(varName, this.globalIndex);
-				// 			console.log(
-				// 				"🤖 VariableDeclarator Global variable: ",
-				// 				varName,
-				// 				this.globalIndex,
-				// 			);
-				// 			this.pushIr(
-				// 				createInstruction(
-				// 					Opcode.GlobalStore
-				// 				),
-				// 			);
-				// 			this.globalIndex++;
-				// 		}
-				// 	} else {
-				// 		console.log("🤖 VariableDeclarator Local variable: ", varName);
-				// 	}
-				// },
+				exit: (path: NodePath<VariableDeclarator>) => {
+					const varName = (path.node.id as Identifier).name;
+					const binding = path.scope.getBinding(varName);
+					if (!binding) return;
+					if (binding.scope.path.isProgram()) {
+						if (!this.globals.has(varName)) {
+							this.globals.set(varName, this.globalIndex);
+							console.log(
+								"🤖 VariableDeclarator Global variable: ",
+								varName,
+								this.globalIndex,
+							);
+							this.pushIr(
+								createInstruction(
+									Opcode.Store
+								),
+							);
+							this.globalIndex++;
+						}
+					} else {
+						console.log("🤖 VariableDeclarator Local variable: ", varName);
+					}
+				},
 			},
 			Identifier: {
 				// enter: (path: NodePath<Identifier>) => {
@@ -90,9 +90,7 @@ class Compiler {
 					};
 					const operator = operatorMap[path.node.operator];
 					if (operator) {
-						this.pushIr(
-							createInstruction(operator),
-						);
+						this.pushIr(createInstruction(operator));
 					} else {
 						throw new Error(`🤖 Unknown operator: ${path.node.operator}`);
 					}
@@ -102,7 +100,9 @@ class Compiler {
 				exit: (path: NodePath<NumericLiteral>) => {
 					console.log("🤖 NumberLiteral: ", path.node.value);
 					this.pushIr(
-						createInstruction(Opcode.Push, [{ kind: ArgKind.Number, value: path.node.value }]),
+						createInstruction(Opcode.Push, [
+							{ kind: ArgKind.Number, value: path.node.value },
+						]),
 					);
 				},
 			},

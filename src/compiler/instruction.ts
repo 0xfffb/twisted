@@ -22,8 +22,8 @@ interface BasicBlock {
 	start: number;
 	end: number;
 	instructions: Instruction[];
-	predecessors: BasicBlock[]
-	successors: BasicBlock[]
+	predecessors: BasicBlock[];
+	successors: BasicBlock[];
 }
 
 interface ControlFlowGraph {
@@ -32,7 +32,11 @@ interface ControlFlowGraph {
 	blocks: Map<number, BasicBlock>;
 }
 
-function createInstruction(opcode: Opcode, args: Arg[] | null = null, tags: string[] | null = null): Instruction {
+function createInstruction(
+	opcode: Opcode,
+	args: Arg[] | null = null,
+	tags: string[] | null = null,
+): Instruction {
 	return {
 		opcode,
 		args: args ?? [],

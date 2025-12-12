@@ -2,14 +2,12 @@ import { Opcode } from "../constant.js";
 
 class VM {
 	private stack: any[];
-	private locals: any[];
 	private globals: any[];
 	private pc: number;
 	private functions: { [key: number]: (v: any) => void };
 
 	constructor() {
 		this.stack = [];
-		this.locals = [];
 		this.globals = [];
 		this.pc = 0;
 		this.functions = {
@@ -19,7 +17,6 @@ class VM {
 
 	execute(bytecode: number[]) {
 		this.stack = [];
-		this.locals = [];
 		this.globals = [];
 		this.pc = 0;
 		while (this.pc < bytecode.length) {
@@ -89,38 +86,22 @@ class VM {
 					}
 					break;
 				}
-				// local commands
-				case Opcode.LocalStore: {
-					const value = this.stack.pop();
-					const index = bytecode[this.pc + 1];
-					this.locals[index] = value;
-					this.pc += 1;
-					break;
-				}
-				case Opcode.LocalLoad: {
-					const index = bytecode[this.pc + 1];
-					const value = this.locals[index];
-					this.stack.push(value);
-					this.pc += 1;
-					break;
-				}
-
 				// global commands
-				case Opcode.GlobalStore: {
+				case Opcode.Store: {
 					const value = this.stack.pop();
 					const index = bytecode[this.pc + 1];
 					this.globals[index] = value;
 					this.pc += 1;
 					break;
 				}
-				case Opcode.GlobalLoad: {
+				case Opcode.Load: {
 					const index = bytecode[this.pc + 1];
 					const value = this.globals[index];
 					this.stack.push(value);
 					this.pc += 1;
 					break;
 				}
-				case Opcode.Call: {
+				case Opcode.RuntimeCall: {
 					const functionIndex = bytecode[this.pc + 1];
 					this.pc += 1;
 					const args = this.stack.pop();
