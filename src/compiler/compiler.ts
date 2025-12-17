@@ -11,6 +11,8 @@ import {
 	BinaryExpression,
 	CallExpression,
 	MemberExpression,
+	LogicalExpression,
+	ThrowStatement,
 } from "@babel/types";
 import { Opcode } from "../constant.js";
 import { ArgKind, createInstruction, type Instruction } from "../instruction.js";
@@ -45,20 +47,19 @@ class Compiler {
 			},
 			CallExpression: {
 				exit: (path: NodePath<CallExpression>) => {
-					const callee = path.node.callee;
-					if (callee.type === "MemberExpression") {
-						const memberExpression = callee as MemberExpression;
-						const object = memberExpression.object;
-						const property = memberExpression.property;
-						if (object.type === "Identifier" && property.type === "Identifier") {
-							const objectName = object.name;
-							const propertyName = property.name;
-							if (this.dependencies.includes(objectName) && this.consoleDependencyMethods.includes(propertyName)) {
-								console.log("🤖 CallExpression RuntimeCall: %s.%s", objectName, propertyName);
-								this.pushIr(createInstruction(Opcode.RuntimeCall, [{ kind: ArgKind.Number, value: 0 }]));
-							}
-						}
-					}
+					path.node.arguments.forEach(node => {
+						console.log("🤖 CallExpression argument: ", (node as NumericLiteral).value);
+					})
+				}
+			},
+			LogicalExpression: {
+				exit: (path: NodePath<LogicalExpression>) => {
+					console.log("🤖 LogicalExpression: ", path.node.operator);
+				}
+			},
+			ThrowStatement: {
+				exit: (path: NodePath<ThrowStatement>) => {
+					console.log("🤖 ThrowStatement: ", path.node.argument.type);
 				}
 			},
 			VariableDeclarator: {
