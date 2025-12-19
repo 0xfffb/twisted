@@ -23,18 +23,12 @@ import { ArgKind, createInstruction, type Instruction } from "../instruction.js"
 class Compiler {
 	private program: Program;
 	public ir: Instruction[];
-	private globals: Map<string, number>;
-	private globalIndex: number;
 	private dependencies: string[];
-	private consoleDependencyMethods: string[];
 
 	constructor(source: string) {
 		this.program = parser.parse(source, { sourceType: "module" }).program;
 		this.ir = [];
-		this.globals = new Map();
-		this.globalIndex = 0;
 		this.dependencies = ["window", "console"];
-		this.consoleDependencyMethods = ["log", "warn", "error", "info", "debug"];
 	}
 
 	compile(): Instruction[] {
@@ -51,11 +45,61 @@ class Compiler {
 	private compileStatement(node: Statement) {
 		switch (node.type) {
 			case "ExpressionStatement":
-				console.log("🤖 Compiling VariableDeclaration");
+				console.log("🤖 Compiling ExpressionStatement");
+				this.compileExpression(node.expression);
 				break;
 			default:
 				throw new Error(`Unsupported statement type: ${node.type}`);
 		}
+	}
+
+	private compileExpression(node: Expression) {
+		switch (node.type) {
+			case "CallExpression":
+				this.compileCallExpression(node as CallExpression);
+				break;
+			case "BinaryExpression":
+				this.compileBinaryExpression(node as BinaryExpression);
+				break;
+			case "Identifier":
+				this.compileIdentifier(node as Identifier);
+				break;
+			case "MemberExpression":
+				this.compileMemberExpression(node as MemberExpression);
+				break;
+			case "NumericLiteral":
+				this.compileNumericLiteral(node as NumericLiteral);
+				break;
+			default:
+				throw new Error(`Unsupported expression type: ${node.type}`);
+		}
+	}
+
+	private compileCallExpression(node: CallExpression) {
+		node.arguments.forEach(argument => {
+			this.compileExpression(argument as Expression);
+		});
+		console.log("🤖 Compiling CallExpression");
+	}
+
+	private compileIdentifier(node: Identifier) {
+		if (this.dependencies.includes(node.name)) {
+			console.log("🤖 Identifier fetch dependency %s", node.name);
+			return
+		}
+		console.log("🤖 Compiling Identifier");
+	}
+
+	private compileMemberExpression(node: MemberExpression) {
+		console.log("🤖 Compiling MemberExpression");
+	}
+
+	private compileNumericLiteral(node: NumericLiteral) {
+		console.log("🤖 Compiling NumericLiteral");
+	}
+
+	private compileBinaryExpression(node: BinaryExpression) {
+		console.log("🤖 Compiling BinaryExpression");
 	}
 
 	private pushIr(instruction: Instruction) {
