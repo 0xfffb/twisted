@@ -59,6 +59,7 @@ class Compiler {
 				this.compileCallExpression(node as CallExpression);
 				break;
 			case "BinaryExpression":
+				console.log("🤖 Compiling BinaryExpression");
 				this.compileBinaryExpression(node as BinaryExpression);
 				break;
 			case "Identifier":
@@ -76,6 +77,19 @@ class Compiler {
 	}
 
 	private compileCallExpression(node: CallExpression) {
+		switch (node.callee.type) {
+			case "Identifier":
+				this.compileIdentifier(node.callee as Identifier);
+				break;
+			case "MemberExpression":
+				this.compileMemberExpression(node.callee as MemberExpression);
+				break;
+			case "CallExpression":
+				this.compileCallExpression(node.callee as CallExpression);
+				break;
+			default:
+				throw new Error(`Unsupported callee type: ${node.callee.type}`);
+		}
 		node.arguments.forEach(argument => {
 			this.compileExpression(argument as Expression);
 		});
@@ -83,14 +97,30 @@ class Compiler {
 	}
 
 	private compileIdentifier(node: Identifier) {
+		console.log("🤖 Compiling Identifier");
 		if (this.dependencies.includes(node.name)) {
 			console.log("🤖 Identifier fetch dependency %s", node.name);
 			return
 		}
-		console.log("🤖 Compiling Identifier");
 	}
 
 	private compileMemberExpression(node: MemberExpression) {
+		switch (node.object.type) {
+			case "Identifier":
+				this.compileIdentifier(node.object as Identifier);
+				break;
+			case "MemberExpression":
+				this.compileMemberExpression(node.object as MemberExpression);
+				break;
+			case "CallExpression":
+				this.compileCallExpression(node.object as CallExpression);
+				break;
+			case "Identifier":
+				this.compileIdentifier(node.object as Identifier);
+				break;
+			default:
+				throw new Error(`Unsupported object type: ${node.object.type}`);
+		}
 		console.log("🤖 Compiling MemberExpression");
 	}
 
