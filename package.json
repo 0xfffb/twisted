@@ -16,7 +16,8 @@
     "@babel/generator": "^7.28.3",
     "@babel/parser": "^7.24.7",
     "@babel/traverse": "^7.24.7",
-    "@babel/types": "^7.24.7"
+    "@babel/types": "^7.24.7",
+    "jsdom": "^27.3.0"
   },
   "devDependencies": {
     "@types/babel__generator": "^7.6.8",
