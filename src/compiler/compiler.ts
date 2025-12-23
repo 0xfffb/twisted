@@ -35,9 +35,11 @@ class Compiler {
 		if (!this.program) {
 			throw new Error("Failed to parse program");
 		}
+		this.context.enter();
 		this.program.body.forEach((element) => {
 			this.compileStatement(element);
 		});
+		this.context.exit();
 		console.log("🤖 Compiled intermediate representation.");
 		return this.ir;
 	}
@@ -109,7 +111,7 @@ class Compiler {
 		if (!result) {
 			console.error("🤖 Identifier %s not found", node.name);
 		}
-		console.log("🤖 Compiling Identifier name: %s", node.name);
+		console.log("🤖 Compiling Identifier name: %s, value: %s", node.name, result);
 	}
 
 	private compileMemberExpression(node: MemberExpression) {
@@ -175,7 +177,37 @@ class Compiler {
 	}
 
 	private compileVariableDeclaration(node: VariableDeclaration) {
+		const declarations = node.declarations;
+		declarations.forEach((declaration) => {
+			this.compileVariableDeclarator(declaration as VariableDeclarator);
+		});
 		console.log("🤖 Compiling VariableDeclaration");
+	}
+
+	private compileVariableDeclarator(node: VariableDeclarator) {
+		const id = node.id;
+		const init = node.init;
+		switch (id.type) {
+			case "Identifier":
+				this.context.declare(id.name);
+				console.log("🤖 Compiling VariableDeclarator id: %s", id.name);
+				break;
+		}
+		if (!init) {
+			throw new Error("🤖 Variable declarator must have an initial value");
+		}
+
+		switch (init.type) {
+			case "NumericLiteral":
+				this.compileNumericLiteral(init as NumericLiteral);
+				break;
+			case "BinaryExpression":
+				this.compileBinaryExpression(init as BinaryExpression);
+				break;
+			default:
+				throw new Error(`Unsupported init type: ${init.type}`);
+		}
+		console.log("🤖 Compiling VariableDeclarator");
 	}
 
 	private pushIr(instruction: Instruction) {
