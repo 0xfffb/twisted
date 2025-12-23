@@ -37,6 +37,9 @@ class Assembler {
 				case ArgKind.ArgLength:
 					this.bytecode.push(arg.value);
 					break;
+				case ArgKind.Variable:
+					this.bytecode.push(arg.value);
+					break;
 				default:
 					throw new Error(`Unknown arg kind: ${arg.kind}`);
 			}

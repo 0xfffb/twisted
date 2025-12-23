@@ -111,6 +111,10 @@ class Compiler {
 		if (!result) {
 			console.error("🤖 Identifier %s not found", node.name);
 		}
+		const ir = createInstruction(Opcode.Load, [
+			createArg(ArgKind.Variable, result),
+		]);
+		this.pushIr(ir);
 		console.log("🤖 Compiling Identifier name: %s, value: %s", node.name, result);
 	}
 
@@ -187,16 +191,10 @@ class Compiler {
 	private compileVariableDeclarator(node: VariableDeclarator) {
 		const id = node.id;
 		const init = node.init;
-		switch (id.type) {
-			case "Identifier":
-				this.context.declare(id.name);
-				console.log("🤖 Compiling VariableDeclarator id: %s", id.name);
-				break;
-		}
 		if (!init) {
 			throw new Error("🤖 Variable declarator must have an initial value");
 		}
-
+		
 		switch (init.type) {
 			case "NumericLiteral":
 				this.compileNumericLiteral(init as NumericLiteral);
@@ -207,6 +205,18 @@ class Compiler {
 			default:
 				throw new Error(`Unsupported init type: ${init.type}`);
 		}
+
+		switch (id.type) {
+			case "Identifier":
+				this.context.declare(id.name);
+				console.log("🤖 Compiling VariableDeclarator id: %s", id.name);
+				const ir = createInstruction(Opcode.Store, [
+					createArg(ArgKind.Variable, this.context.resolve(id.name)),
+				]);
+				this.pushIr(ir);
+				break;
+		}
+		
 		console.log("🤖 Compiling VariableDeclarator");
 	}
 

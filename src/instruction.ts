@@ -8,6 +8,7 @@ enum ArgKind {
 	Dependency = 4,
 	Property = 5,
 	Parameter = 6,
+	Variable = 7,
 }
 
 interface Arg {
