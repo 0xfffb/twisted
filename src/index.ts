@@ -7,7 +7,8 @@ function main() {
 	const code = `
 const a = 1;
 const b = a + 2;
-window.console.log(123 + 2, b)
+const c = 1 + a + b;
+window.console.log(a, b, c);
     `;
 	const compiler = new Compiler(code);
 	const ir = compiler.compile();
