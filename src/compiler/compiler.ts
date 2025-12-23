@@ -108,8 +108,8 @@ class Compiler {
 
 	private compileIdentifier(node: Identifier) {
 		const result = this.context.resolve(node.name);
-		if (!result) {
-			console.error("🤖 Identifier %s not found", node.name);
+		if (result === null) {
+			throw new Error(`🤖 Identifier ${node.name} not found`);
 		}
 		const ir = createInstruction(Opcode.Load, [
 			createArg(ArgKind.Variable, result),
