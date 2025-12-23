@@ -14,7 +14,11 @@ class Scope {
     }
     
     public resolve(name: string) {
-        return this.variables.get(name);
+        const index = this.variables.get(name);
+        if (index === undefined) {
+            return null;
+        }
+        return index;
     }
 }
 

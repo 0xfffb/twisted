@@ -107,15 +107,12 @@ class Compiler {
 	}
 
 	private compileIdentifier(node: Identifier) {
-		const result = this.context.resolve(node.name);
-		if (result === null) {
-			throw new Error(`🤖 Identifier ${node.name} not found`);
-		}
+		const index = this.context.resolve(node.name);
 		const ir = createInstruction(Opcode.Load, [
-			createArg(ArgKind.Variable, result),
+			createArg(ArgKind.Variable, index),
 		]);
 		this.pushIr(ir);
-		console.log("🤖 Compiling Identifier name: %s, value: %s", node.name, result);
+		console.log("🤖 Compiling Identifier name: %s, index: %s", node.name, index);
 	}
 
 	private compileMemberExpression(node: MemberExpression) {
