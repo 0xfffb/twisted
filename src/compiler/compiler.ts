@@ -28,18 +28,15 @@ class Compiler {
 		this.ir = [];
 		this.context = new Context();
 		this.dependencies = ["window", "console"];
-
 	}
 
 	compile(): Instruction[] {
 		if (!this.program) {
 			throw new Error("Failed to parse program");
 		}
-		this.context.enter();
 		this.program.body.forEach((element) => {
 			this.compileStatement(element);
 		});
-		this.context.exit();
 		console.log("🤖 Compiled intermediate representation.");
 		return this.ir;
 	}
@@ -107,7 +104,7 @@ class Compiler {
 	}
 
 	private compileIdentifier(node: Identifier) {
-		const index = this.context.resolve(node.name);
+		const index = this.context.scope.resolve(node.name);
 		const ir = createInstruction(Opcode.Load, [
 			createArg(ArgKind.Variable, index),
 		]);
@@ -205,10 +202,10 @@ class Compiler {
 
 		switch (id.type) {
 			case "Identifier":
-				this.context.declare(id.name);
+				this.context.scope.declare(id.name);
 				console.log("🤖 Compiling VariableDeclarator id: %s", id.name);
 				const ir = createInstruction(Opcode.Store, [
-					createArg(ArgKind.Variable, this.context.resolve(id.name)),
+					createArg(ArgKind.Variable, this.context.scope.resolve(id.name)),
 				]);
 				this.pushIr(ir);
 				break;

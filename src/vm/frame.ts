@@ -1,22 +1,38 @@
 class Frame {
 	private stack: any[];
 	private variables: any[];
-	private returnPc: number;
 	private parameters: any[];
+	private tracebackPc?: number;
 
 	constructor() {
 		this.stack = [];
 		this.variables = [];
-		this.returnPc = 0;
 		this.parameters = [];
+		this.tracebackPc = undefined;
 	}
 
-	public declare(name: string) {
-		this.stack.push(name);
+	public getVariable(index: number) {
+		try {
+			return this.variables[index];
+		} catch (error) {
+			throw new Error(`Get variable index out of bounds for index: ${index}`);
+		}
 	}
 
-	public resolve(name: string) {
-		return this.stack.indexOf(name);
+	public setVariable(index: number, value: any) {
+		try {
+			this.variables[index] = value;
+		} catch (error) {
+			throw new Error(`Set variable index out of bounds for index: ${index}`);
+		}
+	}
+
+	public getParameter(index: number) {
+		try {
+			return this.parameters[index];
+		} catch (error) {
+			throw new Error(`Get parameter index out of bounds for index: ${index}`);
+		}
 	}
 }
 
