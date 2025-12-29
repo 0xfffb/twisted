@@ -7,6 +7,7 @@ class Context {
 	constructor() {
 		this.frames = [];
 		this.frame = new Frame();
+		this.frames.push(this.frame);
 	}
 
 	public pushFrame(frame: Frame) {
