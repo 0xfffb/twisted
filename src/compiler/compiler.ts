@@ -14,7 +14,7 @@ import {
 } from "@babel/types";
 import Opcode from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
-import Context from "./context.js";
+import Context from "./context/context.js";
 
 class Compiler {
 	private program: Program;

@@ -1,4 +1,4 @@
-import Scope from "./scope.js";
+import Scope from "./scope.ts/scope.js";
 
 class Context {
     private scopes: Scope[]
