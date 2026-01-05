@@ -15,7 +15,7 @@ class Frame {
 		this.tracebackPc = undefined;
 	}
 
-	public getParameter(index: number) {
+	public getParameter(index: number): any {
 		try {
 			return this.parameters[index];
 		} catch (error) {

@@ -18,8 +18,8 @@ window.console.log(a, b, c);
 	console.dir(bytecode, { depth: null });
 	const dom = new JSDOM();
 	const dependencies = [dom.window, dom.window.console];
-	const vm = new VM(dependencies);
-	const result = vm.execute(bytecode);
+	const vm = new VM(bytecode, dependencies);
+	const result = vm.execute();
 	console.log(result);
 }
 

@@ -6,26 +6,26 @@ class Stack {
 		this.stack = [];
 	}
 
-	public push(value: any) {
+	public push(value: any): void {
 		this.stack.push(value);
 	}
 	
-	public pop() {
+	public pop(): any {
 		if (this.isEmpty()) {
 			throw new Error("🤖 Stack is empty");
 		}
 		return this.stack.pop();
 	}
 
-	public peek() {
+	public peek(): any {
 		return this.stack[this.stack.length - 1];
 	}
 
-	public size() {
+	public size(): number {
 		return this.stack.length;
 	}
 
-	public isEmpty() {
+	public isEmpty(): boolean {
 		return this.stack.length === 0;
 	}
 }

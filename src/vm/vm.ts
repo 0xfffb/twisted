@@ -1,132 +1,125 @@
 import Opcode from "../constant.js";
-import Context from "./context.js";
+import Context from "./context/context.js";
+import BytecodeReader from "./reader.js";
 
 class VM {
 	private context: Context;
-	private pc: number;
+	private reader: BytecodeReader;
 	private dependencies: object[];
 
-	constructor(dependencies: object[]) {
+	constructor(bytecode: number[], dependencies: object[]) {
 		this.context = new Context();
-		this.pc = 0;
+		this.reader = new BytecodeReader(bytecode);
 		this.dependencies = dependencies;
 	}
 
-	public execute(bytecode: number[]) {
-		this.pc = 0;
-		while (this.pc < bytecode.length) {
-			const opcode = bytecode[this.pc];
-			switch (opcode) {
-				case Opcode.Push:
-					this.context.frame.stack.push(bytecode[this.pc + 1]);
-					this.pc += 1;
-					break;
-				case Opcode.Pop:
-					this.context.frame.stack.pop();
-					break;
-				case Opcode.Add:
-					const a = this.context.frame.stack.pop();
-					const b = this.context.frame.stack.pop();
-					if (typeof a === "number" && typeof b === "number") {
-						this.context.frame.stack.push(a + b);
-					} else {
-						throw new Error("Invalid operands for Add");
-					}
-					break;
-				case Opcode.Sub: {
-					const a = this.context.frame.stack.pop();
-					const b = this.context.frame.stack.pop();
-					if (typeof a === "number" && typeof b === "number") {
-						this.context.frame.stack.push(a - b);
-					} else {
-						throw new Error("Invalid operands for Sub");
-					}
-					break;
-				}
-				case Opcode.Mul: {
-					const a = this.context.frame.stack.pop();
-					const b = this.context.frame.stack.pop();
-					if (typeof a === "number" && typeof b === "number") {
-						this.context.frame.stack.push(a * b);
-					} else {
-						throw new Error("Invalid operands for Mul");
-					}
-					break;
-				}
-				case Opcode.Div: {
-					const a = this.context.frame.stack.pop();
-					const b = this.context.frame.stack.pop();
-					if (typeof a === "number" && typeof b === "number") {
-						this.context.frame.stack.push(a / b);
-					} else {
-						throw new Error("Invalid operands for Div");
-					}
-					break;
-				}
-				case Opcode.Jmp: {
-					const target = bytecode[this.pc + 1];
-					this.pc = target;
-					break;
-				}
-				case Opcode.JmpIf: {
-					const condition = this.context.frame.stack.pop();
-					const target = bytecode[this.pc + 1];
-					if (condition) {
-						this.pc = target;
-					} else {
-						this.pc += 1;
-					}
-					break;
-				}
-				case Opcode.Store: {
-					const value = this.context.frame.stack.pop();
-					const index = bytecode[this.pc + 1];
-					this.context.frame.variables.set(index, value);
-					this.pc += 1;
-					break;
-				}
-				case Opcode.Load: {
-					const index = bytecode[this.pc + 1];
-					const value = this.context.frame.variables.get(index);
-					this.context.frame.stack.push(value);
-					this.pc += 1;
-					break;
-				}
-				case Opcode.Call: {
-					const argsLength = bytecode[this.pc + 1];
-					var args = [];
-					for (let i = 0; i < argsLength; i++) {
-						args.push(this.context.frame.stack.pop());
-					}
-					args.reverse();
-					const dependency = this.context.frame.stack.pop();
-					console.log("🤖 Calling dependency: %s", dependency);
-					dependency(...args);
-					this.pc += 1;
-					break;
-				}
-				case Opcode.Dependency: {
-					const index = bytecode[this.pc + 1];
-					const dependency = this.dependencies[index];
-					console.log("🤖 Dependency index: %s, dependency: %s", index);
-					this.context.frame.stack.push(dependency);
-					this.pc += 1;
-					break;
-				}
-				case Opcode.Property: {
-					const dependency = this.context.frame.stack.pop();
-					const property = bytecode[this.pc + 1];
-					this.context.frame.stack.push(dependency[property]);
-					this.pc += 1;
-					break;
-				}
-			}
-			this.pc += 1;
+	public execute() {
+		while (this.reader.hasNext()) {
+			const opcode = this.reader.read();
+			this._execute(opcode);
 		}
 		return this.context.frame.stack.peek();
 	}
 
 	private _execute(opcode: Opcode) {
+		switch (opcode) {
+			case Opcode.Push:
+				this.context.frame.stack.push(this.reader.read());
+				break;
+			case Opcode.Pop:
+				this.context.frame.stack.pop();
+				break;
+			case Opcode.Add:
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(a + b);
+				} else {
+					throw new Error("Invalid operands for Add");
+				}
+				break;
+			case Opcode.Sub: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(a - b);
+				} else {
+					throw new Error("Invalid operands for Sub");
+				}
+				break;
+			}
+			case Opcode.Mul: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(a * b);
+				} else {
+					throw new Error("Invalid operands for Mul");
+				}
+				break;
+			}
+			case Opcode.Div: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(a / b);
+				} else {
+					throw new Error("Invalid operands for Div");
+				}
+				break;
+			}
+			case Opcode.Jmp: {
+				const target = this.reader.read();
+				this.reader.jump(target);
+				break;
+			}
+			case Opcode.JmpIf: {
+				const condition = this.context.frame.stack.pop();
+				const target = this.reader.read();
+				if (condition) {
+					this.reader.jump(target);
+				}
+				break;
+			}
+			case Opcode.Store: {
+				const value = this.context.frame.stack.pop();
+				const index = this.reader.read();
+				this.context.frame.variables.set(index, value);
+				break;
+			}
+			case Opcode.Load: {
+				const index = this.reader.read();
+				const value = this.context.frame.variables.get(index);
+				this.context.frame.stack.push(value);
+				break;
+			}
+			case Opcode.Call: {
+				const argsLength = this.reader.read();
+				console.log("🤖 Calling with args length: %s", argsLength);
+				var args = [];
+				for (let i = 0; i < argsLength; i++) {
+					args.push(this.context.frame.stack.pop());
+				}
+				args.reverse();
+				const dependency = this.context.frame.stack.pop();
+				console.log("🤖 Calling dependency: %s", dependency);
+				dependency(...args);
+				break;
+			}
+			case Opcode.Dependency: {
+				const index = this.reader.read();
+				const dependency = this.dependencies[index];
+				console.log("🤖 Dependency index: %s, dependency: %s", index);
+				this.context.frame.stack.push(dependency);
+				break;
+			}
+			case Opcode.Property: {
+				const dependency = this.context.frame.stack.pop();
+				const property = this.reader.read();
+				this.context.frame.stack.push(dependency[property]);
+				break;
+			}
+		}
 	}
 }
 

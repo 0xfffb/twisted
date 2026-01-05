@@ -1,4 +1,4 @@
-import Frame from "./frame.js";
+import Frame from "./frame/frame.js";
 
 class Context {
 	private frames: Frame[];
