@@ -11,6 +11,8 @@ import {
 	Statement,
 	VariableDeclarator,
 	VariableDeclaration,
+	IfStatement,
+	BlockStatement,
 } from "@babel/types";
 import Opcode from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
@@ -50,8 +52,26 @@ class Compiler {
 			case "VariableDeclaration":
 				this.compileVariableDeclaration(node as VariableDeclaration);
 				break;
+			case "IfStatement":
+				this.compileIfStatement(node as IfStatement);
+			case "BlockStatement":
+				this.compileBlockStatement(node as BlockStatement);
 			default:
 				throw new Error(`Unsupported statement type: ${node.type}`);
+		}
+	}
+
+	private compileBlockStatement(node: BlockStatement) {
+		node.body.forEach((statement) => {
+			this.compileStatement(statement as Statement);
+		});
+	}
+
+	private compileIfStatement(node: IfStatement) {
+		this.compileExpression(node.test as Expression);
+		this.compileStatement(node.consequent as Statement);
+		if (node.alternate) {
+			this.compileStatement(node.alternate as Statement);
 		}
 	}
 
