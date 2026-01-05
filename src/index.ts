@@ -13,6 +13,9 @@ window.console.log(a, b, c);
 if (true) {
     const d = 1;
     window.console.log(d);
+} else {
+	const e = 2;
+	window.console.log(e);
 }
     `;
 	const compiler = new Compiler(code);
