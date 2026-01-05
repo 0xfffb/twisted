@@ -1,30 +1,18 @@
+import Stack from "./stack.js";
+import Variables from "./variables.js";
+
+
 class Frame {
-	private stack: any[];
-	private variables: any[];
+	public stack: Stack;
+	public variables: Variables;
 	private parameters: any[];
 	private tracebackPc?: number;
 
 	constructor() {
-		this.stack = [];
-		this.variables = [];
+		this.stack = new Stack();
+		this.variables = new Variables();
 		this.parameters = [];
 		this.tracebackPc = undefined;
-	}
-
-	public getVariable(index: number) {
-		try {
-			return this.variables[index];
-		} catch (error) {
-			throw new Error(`Get variable index out of bounds for index: ${index}`);
-		}
-	}
-
-	public setVariable(index: number, value: any) {
-		try {
-			this.variables[index] = value;
-		} catch (error) {
-			throw new Error(`Set variable index out of bounds for index: ${index}`);
-		}
 	}
 
 	public getParameter(index: number) {
@@ -34,6 +22,7 @@ class Frame {
 			throw new Error(`Get parameter index out of bounds for index: ${index}`);
 		}
 	}
+
 }
 
-export { Frame };
+export default Frame;

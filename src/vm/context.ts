@@ -1,4 +1,4 @@
-import { Frame } from "./frame.js";
+import Frame from "./frame.js";
 
 class Context {
 	private frames: Frame[];
@@ -24,4 +24,4 @@ class Context {
 	}
 }
 
-export { Context };
+export default Context;

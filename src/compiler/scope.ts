@@ -22,4 +22,4 @@ class Scope {
     }
 }
 
-export { Scope };
+export default Scope;

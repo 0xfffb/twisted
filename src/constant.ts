@@ -14,4 +14,4 @@ const enum Opcode {
 	Property = 0x0c,
 }
 
-export { Opcode };
+export default Opcode;

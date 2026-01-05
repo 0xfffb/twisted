@@ -1,4 +1,4 @@
-import { Scope } from "./scope.js";
+import Scope from "./scope.js";
 
 class Context {
     private scopes: Scope[]
@@ -25,4 +25,4 @@ class Context {
     }
 }
 
-export { Context };
+export default Context;
