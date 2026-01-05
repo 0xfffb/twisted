@@ -1,4 +1,4 @@
-import { Opcode } from "./constant.js";
+import Opcode from "./constant.js";
 
 enum ArgKind {
 	Undefined = 0,
