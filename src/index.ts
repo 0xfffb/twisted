@@ -10,7 +10,7 @@ const b = a + 2;
 const c = 1 + a + b;
 window.console.log(a, b, c);
 
-if (true) {
+if (1 === 1) {
     const d = 1;
     window.console.log(d);
 } else {

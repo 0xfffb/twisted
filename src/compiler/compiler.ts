@@ -54,8 +54,10 @@ class Compiler {
 				break;
 			case "IfStatement":
 				this.compileIfStatement(node as IfStatement);
+				break;
 			case "BlockStatement":
 				this.compileBlockStatement(node as BlockStatement);
+				break;
 			default:
 				throw new Error(`Unsupported statement type: ${node.type}`);
 		}
@@ -93,7 +95,6 @@ class Compiler {
 			case "NumericLiteral":
 				this.compileNumericLiteral(node as NumericLiteral);
 				break;
-
 			default:
 				throw new Error(`Unsupported expression type: ${node.type}`);
 		}
@@ -188,6 +189,12 @@ class Compiler {
 				break;
 			case "-":
 				this.pushIr(createInstruction(Opcode.Sub));
+				break;
+			case "==":
+				this.pushIr(createInstruction(Opcode.Equal));
+				break;
+			case "===":
+				this.pushIr(createInstruction(Opcode.Equal));
 				break;
 			default:
 				throw new Error(`Unsupported operator: ${operator}`);
