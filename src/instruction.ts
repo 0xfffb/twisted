@@ -1,4 +1,4 @@
-import Opcode from "./constant.js";
+import { Opcode } from "./constant.js";
 
 enum ArgKind {
 	Undefined = 0,
@@ -9,6 +9,7 @@ enum ArgKind {
 	Property = 5,
 	Parameter = 6,
 	Variable = 7,
+	Label = 8
 }
 
 interface Arg {
