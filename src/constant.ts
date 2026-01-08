@@ -15,4 +15,9 @@ const enum Opcode {
 	Property = 0x0d,
 }
 
-export default Opcode;
+const enum LabelType {
+    IF_THEN = "IF_THEN",
+    IF_END = "IF_END",
+}
+
+export { Opcode, LabelType };

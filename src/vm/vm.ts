@@ -1,4 +1,4 @@
-import Opcode from "../constant.js";
+import { Opcode } from "../constant.js";
 import Context from "./context/context.js";
 import BytecodeReader from "./reader.js";
 

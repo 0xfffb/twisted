@@ -14,7 +14,7 @@ import {
 	IfStatement,
 	BlockStatement,
 } from "@babel/types";
-import Opcode from "../constant.js";
+import { LabelType, Opcode } from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
 import Context from "./context/context.js";
 
@@ -71,10 +71,14 @@ class Compiler {
 
 	private compileIfStatement(node: IfStatement) {
 		this.compileExpression(node.test as Expression);
-		this.compileStatement(node.consequent as Statement);
+		Opcode.JmpIf // if true jump to then, else jump to end
 		if (node.alternate) {
 			this.compileStatement(node.alternate as Statement);
 		}
+		Opcode.Jmp; // jump to end
+		LabelType.IF_THEN;
+		this.compileStatement(node.consequent as Statement);
+		LabelType.IF_END;
 	}
 
 	private compileExpression(node: Expression) {
