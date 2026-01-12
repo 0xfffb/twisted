@@ -1,15 +1,21 @@
 import { ArgKind, type Instruction } from "../instruction.js";
+import { Bulldozer } from "./bulldozer.js";
 
 class Assembler {
-	private bytecode: number[] = [];
+	private bytecode: number[];
+	private bulldozer: Bulldozer;
+
 	constructor() {
 		this.bytecode = [];
+		this.bulldozer = new Bulldozer();
 	}
 
 	assemble(ir: Instruction[]): number[] {
-		ir.forEach((instruction) => {
+		ir.forEach((instruction, index) => {
+			this.bulldozer.mark(index, this.bytecode.length);
 			this.push(instruction);
 		});
+		this.bulldozer.backpatch(this.bytecode)
 		return this.bytecode;
 	}
 
@@ -41,20 +47,14 @@ class Assembler {
 					this.bytecode.push(arg.value);
 					break;
 				case ArgKind.DynAddr:
+					const dynAddrPos = this.bytecode.length;
 					this.bytecode.push(arg.value);
+					this.bulldozer.addPatch(dynAddrPos, arg.value);
 					break;
 				default:
 					throw new Error(`Unknown arg kind: ${arg.kind}`);
 			}
 		});
-	}
-
-	private toByteArray(number: number): number[] {
-		return number
-			.toString(16)
-			.padStart(2, "0")
-			.split("")
-			.map((char) => parseInt(char, 16));
 	}
 }
 

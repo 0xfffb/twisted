@@ -68,6 +68,12 @@ class VM {
 				}
 				break;
 			}
+			case Opcode.Equal: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				this.context.frame.stack.push(a === b);
+				break;
+			}
 			case Opcode.Jmp: {
 				const target = this.reader.read();
 				this.reader.jump(target);

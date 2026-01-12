@@ -42,6 +42,7 @@ class Compiler {
 			this.compileStatement(element);
 		});
 		console.log("🤖 Compiled intermediate representation.");
+		this.bulldozer.backpatch(this.ir);
 		return this.ir;
 	}
 
@@ -78,17 +79,14 @@ class Compiler {
 
 		if (node.alternate) {
 			// jmp if true jump to then, else jump to end
-			this.bulldozer.remember(L_THEN_ID, this.ir.length);
-			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, undefined)]));
+			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, L_THEN_ID)]));
 			this.compileStatement(node.alternate as Statement);
-			this.bulldozer.remember(L_END_ID, this.ir.length);
-			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, undefined)]));
+			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_END_ID)]));
 			this.bulldozer.record(L_THEN_ID, this.ir.length);
 			this.compileStatement(node.consequent as Statement);
 			this.bulldozer.record(L_END_ID, this.ir.length);
 		} else {
-			this.bulldozer.remember(L_THEN_ID, this.ir.length);
-			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, undefined)]));
+			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, L_THEN_ID)]));
 			this.bulldozer.record(L_THEN_ID, this.ir.length);
 			this.compileStatement(node.consequent as Statement);
 			this.bulldozer.record(L_END_ID, this.ir.length);

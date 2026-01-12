@@ -4,12 +4,10 @@ import { ArgKind, Instruction } from "../instruction.js";
 class Bulldozer {
 
 	private labels: Map<number, Label>;
-	private backpatchs: Map<number, number[]>;
 	private counter: number;
 
 	constructor() {
 		this.labels = new Map();
-		this.backpatchs = new Map();
 		this.counter = 0;
 	}
 
@@ -18,13 +16,6 @@ class Bulldozer {
 		this.labels.set(id, new Label(id, type, undefined));
 		this.counter++;
 		return id;
-	}
-
-	public remember(id: number, position: number) {
-		if (!this.backpatchs.has(id)) {
-			this.backpatchs.set(id, []);
-		}
-		this.backpatchs.get(id)!.push(position);
 	}
 
 	public record(id: number, position: number) {
@@ -36,22 +27,21 @@ class Bulldozer {
 	}
 
 	public backpatch(ir: Instruction[]) {
-		for (const [labelId, positions] of this.backpatchs) {
-			const label = this.labels.get(labelId);
-			if (!label) {
-				throw new Error(`Label ${labelId} not found`);
-			}
-			if (label.position === undefined) {
-				throw new Error(`Label ${labelId} position not recorded`);
-			}
+		for (let i = 0; i < ir.length; i++) {
+			const instruction = ir[i];
 			
-			// 回填所有需要回填的位置
-			for (const pos of positions) {
-				const arg = ir[pos].args[0];
-				if (arg.kind === ArgKind.DynAddr && arg.value === undefined) {
+			for (const arg of instruction.args) {
+				if (arg.kind === ArgKind.DynAddr && arg.value !== undefined) {
+					const label = this.labels.get(arg.value);
+					if (!label) {
+						throw new Error(`Label ${arg.value} not found`);
+					}
+					if (label.position === undefined) {
+						throw new Error(`Label ${arg.value} position not recorded`);
+					}
+					
 					arg.value = label.position;
-				} else {
-					throw new Error(`Invalid placeholder at position ${pos}`);
+					console.log(`🤖 Backpatch: instruction[${i}] labelId ${arg.value} -> position ${label.position}`);
 				}
 			}
 		}
