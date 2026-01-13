@@ -2,7 +2,6 @@ import { LabelType } from "../constant.js";
 import { ArgKind, Instruction } from "../instruction.js";
 
 class Bulldozer {
-
 	private labels: Map<number, Label>;
 	private counter: number;
 
@@ -29,7 +28,7 @@ class Bulldozer {
 	public backpatch(ir: Instruction[]) {
 		for (let i = 0; i < ir.length; i++) {
 			const instruction = ir[i];
-			
+
 			for (const arg of instruction.args) {
 				if (arg.kind === ArgKind.DynAddr && arg.value !== undefined) {
 					const label = this.labels.get(arg.value);
@@ -39,9 +38,11 @@ class Bulldozer {
 					if (label.position === undefined) {
 						throw new Error(`Label ${arg.value} position not recorded`);
 					}
-					
+
 					arg.value = label.position;
-					console.log(`🤖 Backpatch: instruction[${i}] labelId ${arg.value} -> position ${label.position}`);
+					console.log(
+						`🤖 Backpatch: instruction[${i}] labelId ${arg.value} -> position ${label.position}`,
+					);
 				}
 			}
 		}
@@ -49,17 +50,15 @@ class Bulldozer {
 }
 
 class Label {
-
 	public id: number;
 	public type: LabelType;
 	public position: number | undefined;
 
 	constructor(id: number, type: LabelType, position: number | undefined) {
 		this.id = id;
-		this.type = type
+		this.type = type;
 		this.position = position;
 	}
-
 }
 
 export { Bulldozer, Label };

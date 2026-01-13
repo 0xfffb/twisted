@@ -1,7 +1,6 @@
 import { ArgKind, Instruction } from "../instruction.js";
 
 class Bulldozer {
-
 	private marks: Map<number, number>;
 
 	constructor() {
@@ -12,7 +11,7 @@ class Bulldozer {
 		this.marks.set(irIndex, bytecodeIndex);
 	}
 
-    public backpatch(bytecode: number[], ir: Instruction[]) {        
+	public backpatch(bytecode: number[], ir: Instruction[]) {
 		ir.forEach((instruction, index) => {
 			let bytecodeIndex = this.marks.get(index);
 			if (bytecodeIndex === undefined) {
@@ -24,15 +23,19 @@ class Bulldozer {
 					const position = bytecodeIndex + argIndex + 1;
 					const targetBytecodeIndex = this.marks.get(arg.value);
 					if (targetBytecodeIndex === undefined) {
-						throw new Error(`Bytecode index not found for IR index: ${arg.value} at index: ${index}`);
+						throw new Error(
+							`Bytecode index not found for IR index: ${arg.value} at index: ${index}`,
+						);
 					}
 					// backpatch dyn addr
 					bytecode[position] = targetBytecodeIndex;
-					console.log(`Backpatch: bytecode[${position}]: IR[${arg.value}] -> bytecode[${targetBytecodeIndex}]`);
+					console.log(
+						`Backpatch: bytecode[${position}]: IR[${arg.value}] -> bytecode[${targetBytecodeIndex}]`,
+					);
 				}
 			});
 		});
-    }
+	}
 }
 
 export { Bulldozer };

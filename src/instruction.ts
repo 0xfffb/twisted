@@ -9,7 +9,7 @@ enum ArgKind {
 	Property = 5,
 	Parameter = 6,
 	Variable = 7,
-	DynAddr = 8
+	DynAddr = 8,
 }
 
 interface Arg {
