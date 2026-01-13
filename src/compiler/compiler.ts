@@ -13,6 +13,8 @@ import {
 	VariableDeclaration,
 	IfStatement,
 	BlockStatement,
+	FunctionDeclaration,
+	ReturnStatement,
 } from "@babel/types";
 import { LabelType, Opcode } from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
@@ -63,9 +65,32 @@ class Compiler {
 			case "BlockStatement":
 				this.compileBlockStatement(node as BlockStatement);
 				break;
+			case "FunctionDeclaration":
+				this.compileFunctionDeclaration(node as FunctionDeclaration);
+				break;
+			case "ReturnStatement":
+				this.compileReturnStatement(node as ReturnStatement);
+				break;
 			default:
 				throw new Error(`Unsupported statement type: ${node.type}`);
 		}
+	}
+
+	private compileReturnStatement(node: ReturnStatement) {
+		const argument = node.argument;
+		if (!argument) {
+			throw new Error("🤖 Return statement must have an argument");
+		}
+		this.compileExpression(argument as Expression);
+	}
+
+	private compileFunctionDeclaration(node: FunctionDeclaration) {
+		const id = node.id;
+		const body = node.body;
+		if (!body) {
+			throw new Error("🤖 Function declaration must have a body");
+		}
+		this.compileBlockStatement(body as BlockStatement);
 	}
 
 	private compileBlockStatement(node: BlockStatement) {

@@ -13,12 +13,16 @@ const enum Opcode {
 	Call = 0x0b,
 	Dependency = 0x0c,
 	Property = 0x0d,
-	Halt = 0x0e,
+	PushFrame = 0x0e,
+	PopFrame = 0x0f,
+	Halt = 0x10,
 }
 
 const enum LabelType {
 	IF_THEN = "IF_THEN",
 	IF_END = "IF_END",
+	FUNCTION_START = "FUNCTION_START",
+	FUNCTION_END = "FUNCTION_END",
 }
 
 export { Opcode, LabelType };
