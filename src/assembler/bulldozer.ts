@@ -13,29 +13,25 @@ class Bulldozer {
 	}
 
     public backpatch(bytecode: number[], ir: Instruction[]) {        
-        for (let i = 0; i < ir.length; i++) {
-            const instruction = ir[i];
-            let bytecodeIndex = this.marks.get(i);
-            if (bytecodeIndex === undefined) {
-                throw new Error(`Bytecode index not found for IR index: ${i}`);
-            }
-			// skip opcode
-            bytecodeIndex++;
-            for (const arg of instruction.args) {
-                if (arg.kind === ArgKind.DynAddr && arg.value !== undefined) {
-                    const targetBytecodeIndex = this.marks.get(arg.value);
-                    
-                    if (targetBytecodeIndex === undefined) {
-                        throw new Error(`Bytecode index not found for IR index: ${arg.value}`);
-                    }
+		ir.forEach((instruction, index) => {
+			let bytecodeIndex = this.marks.get(index);
+			if (bytecodeIndex === undefined) {
+				throw new Error(`Bytecode index not found for IR index: ${index}`);
+			}
+			instruction.args.forEach((arg, argIndex) => {
+				if (arg.kind === ArgKind.DynAddr && arg.value !== undefined) {
+					// bytecode index plus arg index plus 1 for opcode
+					const position = bytecodeIndex + argIndex + 1;
+					const targetBytecodeIndex = this.marks.get(arg.value);
+					if (targetBytecodeIndex === undefined) {
+						throw new Error(`Bytecode index not found for IR index: ${arg.value} at index: ${index}`);
+					}
 					// backpatch dyn addr
-                    bytecode[bytecodeIndex] = targetBytecodeIndex;
-                    console.log(`Backpatch: bytecode[${bytecodeIndex}]: IR[${arg.value}] -> bytecode[${targetBytecodeIndex}]`);
-                }
-				// next arg
-				bytecodeIndex++;
-            }
-        }
+					bytecode[position] = targetBytecodeIndex;
+					console.log(`Backpatch: bytecode[${position}]: IR[${arg.value}] -> bytecode[${targetBytecodeIndex}]`);
+				}
+			});
+		});
     }
 }
 
