@@ -98,13 +98,12 @@ class Compiler {
 
 		switch (id.type) {
 			case "Identifier":
-				this.context.hasFunction(id.name);
-				if (this.context.hasFunction(id.name)) {
+				if (this.bulldozer.hasLabelByName(id.name)) {
 					throw new Error(`Function name already declared: ${id.name}`);
 				}
-				this.context.setFunction(id.name);
-				const index = this.context.getFunction(id.name);
-				console.log("🤖 Function name: %s, index: %s", id.name, index);
+				const L_FUNCTION_START = this.bulldozer.label(id.name, LabelType.FUNCTION_START);
+				this.bulldozer.record(L_FUNCTION_START.id, this.ir.length);
+				console.log("🤖 Function name: %s, index: %s", id.name, L_FUNCTION_START);
 				break;
 			default:
 				throw new Error(`Unsupported id type: ${id.type}`);
@@ -120,22 +119,22 @@ class Compiler {
 
 	private compileIfStatement(node: IfStatement) {
 		this.compileExpression(node.test as Expression);
-		const L_THEN_ID = this.bulldozer.label(LabelType.IF_THEN);
-		const L_END_ID = this.bulldozer.label(LabelType.IF_END);
+		const L_THEN = this.bulldozer.label(undefined, LabelType.IF_THEN);
+		const L_END = this.bulldozer.label(undefined, LabelType.IF_END);
 
 		if (node.alternate) {
 			// jmp if true jump to then, else jump to end
-			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, L_THEN_ID)]));
+			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, L_THEN.id)]));
 			this.compileStatement(node.alternate as Statement);
-			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_END_ID)]));
-			this.bulldozer.record(L_THEN_ID, this.ir.length);
+			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_END.id)]));
+			this.bulldozer.record(L_THEN.id, this.ir.length);
 			this.compileStatement(node.consequent as Statement);
-			this.bulldozer.record(L_END_ID, this.ir.length);
+			this.bulldozer.record(L_END.id, this.ir.length);
 		} else {
-			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, L_THEN_ID)]));
-			this.bulldozer.record(L_THEN_ID, this.ir.length);
+			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, L_THEN.id)]));
+			this.bulldozer.record(L_THEN.id, this.ir.length);
 			this.compileStatement(node.consequent as Statement);
-			this.bulldozer.record(L_END_ID, this.ir.length);
+			this.bulldozer.record(L_END.id, this.ir.length);
 		}
 	}
 
@@ -165,8 +164,12 @@ class Compiler {
 	private compileCallExpression(node: CallExpression) {
 		switch (node.callee.type) {
 			case "Identifier":
-				if (this.context.hasFunction(node.callee.name)) {
-					console.log("🤖 Compiling CallExpression function: %s", node.callee.name);
+				if (this.bulldozer.hasLabelByName(node.callee.name)) {
+					const L_FUNCTION_START = this.bulldozer.getLabelByName(node.callee.name);
+					const ir = createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_FUNCTION_START.id)]);
+
+					this.pushIr(ir);
+					console.log("🤖 Compiling CallExpression function: %s, index: %s", node.callee.name, L_FUNCTION_START.id);
 					break
 				}
 				this.compileIdentifier(node.callee as Identifier);

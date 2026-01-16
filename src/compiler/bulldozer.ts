@@ -10,11 +10,14 @@ class Bulldozer {
 		this.counter = 0;
 	}
 
-	public label(type: LabelType): number {
-		const id = this.counter;
-		this.labels.set(id, new Label(id, type, undefined));
+	public label(name: string | undefined, type: LabelType): Label {
+		if (name === undefined) {
+			name = `L_${this.counter}`;
+		}
+		const label = new Label(this.counter, name, type, undefined);
+		this.labels.set(this.counter, label);
 		this.counter++;
-		return id;
+		return label;
 	}
 
 	public record(id: number, position: number) {
@@ -23,6 +26,30 @@ class Bulldozer {
 			throw new Error(`Label ${id} not found`);
 		}
 		label.position = position;
+	}
+
+	public hasLabelById(id: number): boolean {
+		return this.labels.has(id);
+	}
+
+	public getLabelById(id: number): Label {
+		const label = this.labels.get(id);
+		if (!label) {
+			throw new Error(`Label ${id} not found`);
+		}
+		return label;
+	}
+
+	public hasLabelByName(name: string): boolean {
+		return this.labels.values().some((label) => label.name === name);
+	}
+
+	public getLabelByName(name: string): Label {
+		const label = this.labels.values().find((label) => label.name === name);
+		if (!label) {
+			throw new Error(`Label ${name} not found`);
+		}
+		return label;
 	}
 
 	public backpatch(ir: Instruction[]) {
@@ -51,11 +78,13 @@ class Bulldozer {
 
 class Label {
 	public id: number;
+	public name: string | undefined;
 	public type: LabelType;
 	public position: number | undefined;
 
-	constructor(id: number, type: LabelType, position: number | undefined) {
+	constructor(id: number, name: string | undefined, type: LabelType, position: number | undefined) {
 		this.id = id;
+		this.name = name;
 		this.type = type;
 		this.position = position;
 	}
