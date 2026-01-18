@@ -127,12 +127,15 @@ class VM {
 				break;
 			}
 			case Opcode.PushFrame: {
-				this.context.pushFrame(new Frame(this.reader.getPc()));
+				const pc = this.reader.getPc();
+				const frame = new Frame(pc);
+				this.context.pushFrame(frame);
 				break;
 			}
 			case Opcode.PopFrame: {
 				const frame = this.context.popFrame();
-				this.reader.jump(frame.getTracebackPc());
+				this.reader.jump(frame.getTracebackPc() + 1);
+				this.context.frame.stack.push(frame.stack.pop());
 				break;
 			}
 		}

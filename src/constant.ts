@@ -22,6 +22,7 @@ const enum LabelType {
 	IF_THEN = "IF_THEN",
 	IF_END = "IF_END",
 	FUNCTION_START = "FUNCTION_START",
+	FUNCTION_END = "FUNCTION_END",
 }
 
 export { Opcode, LabelType };

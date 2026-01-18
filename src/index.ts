@@ -19,6 +19,8 @@ if (b == c) {
 }
 
 function test() {
+	const fn = 12345;
+	window.console.log(fn);
 	return 1
 }
 window.console.log(test());
@@ -31,9 +33,10 @@ window.console.log(test());
 	console.dir(bytecode, { depth: null });
 	const dom = new JSDOM();
 	const dependencies = [dom.window, dom.window.console];
-	// const vm = new VM(bytecode, dependencies);
-	// const result = vm.execute();
-	// console.log(result);
+	const vm = new VM(bytecode, dependencies);
+	const result = vm.execute();
+	console.log(result);
 }
 
-main();
+
+main()

@@ -96,19 +96,26 @@ class Compiler {
 			throw new Error("🤖 Function declaration must have a body");
 		}
 
-		switch (id.type) {
-			case "Identifier":
-				if (this.bulldozer.hasLabelByName(id.name)) {
-					throw new Error(`Function name already declared: ${id.name}`);
-				}
-				const L_FUNCTION_START = this.bulldozer.label(id.name, LabelType.FUNCTION_START);
-				this.bulldozer.record(L_FUNCTION_START.id, this.ir.length);
-				console.log("🤖 Function name: %s, index: %s", id.name, L_FUNCTION_START);
-				break;
-			default:
-				throw new Error(`Unsupported id type: ${id.type}`);
-		}
+		const L_FUNCTION_START = this.bulldozer.label(id.name, LabelType.FUNCTION_START);
+		const L_FUNCTION_END = this.bulldozer.label(undefined, LabelType.FUNCTION_END);
+		this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_FUNCTION_END.id)]));
+		this.bulldozer.record(L_FUNCTION_START.id, this.ir.length);
+		node.params.forEach((param) => {
+			switch (param.type) {
+				case "Identifier":
+					this.context.scope.declare(param.name);
+					const ir = createInstruction(Opcode.Store, [
+						createArg(ArgKind.Variable, this.context.scope.resolve(param.name)),
+					]);
+					this.pushIr(ir);
+					break;
+				default:
+					throw new Error(`Unsupported param type: ${param.type}`);
+			}
+		});
 		this.compileBlockStatement(body as BlockStatement);
+		this.pushIr(createInstruction(Opcode.PopFrame));
+		this.bulldozer.record(L_FUNCTION_END.id, this.ir.length);
 	}
 
 	private compileBlockStatement(node: BlockStatement) {
@@ -165,12 +172,12 @@ class Compiler {
 		switch (node.callee.type) {
 			case "Identifier":
 				if (this.bulldozer.hasLabelByName(node.callee.name)) {
+					this.pushIr(createInstruction(Opcode.PushFrame));
 					const L_FUNCTION_START = this.bulldozer.getLabelByName(node.callee.name);
 					const ir = createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_FUNCTION_START.id)]);
-
 					this.pushIr(ir);
 					console.log("🤖 Compiling CallExpression function: %s, index: %s", node.callee.name, L_FUNCTION_START.id);
-					break
+					return
 				}
 				this.compileIdentifier(node.callee as Identifier);
 				break;
