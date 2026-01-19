@@ -40,9 +40,6 @@ class Assembler {
 				case ArgKind.Parameter:
 					this.bytecode.push(arg.value);
 					break;
-				case ArgKind.ArgLength:
-					this.bytecode.push(arg.value);
-					break;
 				case ArgKind.Variable:
 					this.bytecode.push(arg.value);
 					break;

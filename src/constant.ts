@@ -10,13 +10,37 @@ const enum Opcode {
 	JmpIf = 0x08,
 	Store = 0x09,
 	Load = 0x0a,
-	Call = 0x0b,
+	Apply = 0x0b,
 	Dependency = 0x0c,
 	Property = 0x0d,
 	PushFrame = 0x0e,
 	PopFrame = 0x0f,
 	Halt = 0x10,
+	BuildArray = 0x11,
+	BuildObject = 0x12
 }
+
+const OPCODE_NAMES: Record<number, string> = {
+	[Opcode.Push]: "Push",
+	[Opcode.Pop]: "Pop",
+	[Opcode.Add]: "Add",
+	[Opcode.Sub]: "Sub",
+	[Opcode.Mul]: "Mul",
+	[Opcode.Div]: "Div",
+	[Opcode.Equal]: "Equal",
+	[Opcode.Jmp]: "Jmp",
+	[Opcode.JmpIf]: "JmpIf",
+	[Opcode.Store]: "Store",
+	[Opcode.Load]: "Load",
+	[Opcode.Apply]: "Apply",
+	[Opcode.Dependency]: "Dependency",
+	[Opcode.Property]: "Property",
+	[Opcode.PushFrame]: "PushFrame",
+	[Opcode.PopFrame]: "PopFrame",
+	[Opcode.Halt]: "Halt",
+	[Opcode.BuildArray]: "BuildArray",
+	[Opcode.BuildObject]: "BuildObject",
+};
 
 const enum LabelType {
 	IF_THEN = "IF_THEN",
@@ -25,4 +49,4 @@ const enum LabelType {
 	FUNCTION_END = "FUNCTION_END",
 }
 
-export { Opcode, LabelType };
+export { Opcode, LabelType, OPCODE_NAMES };

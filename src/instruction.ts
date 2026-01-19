@@ -4,7 +4,6 @@ enum ArgKind {
 	Undefined = 0,
 	String = 1,
 	Number = 2,
-	ArgLength = 3,
 	Dependency = 4,
 	Property = 5,
 	Parameter = 6,

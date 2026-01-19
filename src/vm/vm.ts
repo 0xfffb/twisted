@@ -1,3 +1,4 @@
+import { tsConstructSignatureDeclaration } from "@babel/types";
 import { Opcode } from "../constant.js";
 import Context from "./context/context.js";
 import Frame from "./context/frame/frame.js";
@@ -100,17 +101,13 @@ class VM {
 				this.context.frame.stack.push(value);
 				break;
 			}
-			case Opcode.Call: {
-				const argsLength = this.reader.read();
-				console.log("🤖 Calling with args length: %s", argsLength);
-				var args = [];
-				for (let i = 0; i < argsLength; i++) {
-					args.push(this.context.frame.stack.pop());
-				}
-				args.reverse();
-				const dependency = this.context.frame.stack.pop();
-				console.log("🤖 Calling dependency: %s", dependency);
-				dependency(...args);
+			case Opcode.Apply: {
+				const array = this.context.frame.stack.pop();
+				// const _this = this.context.frame.stack.pop();
+				const _function = this.context.frame.stack.pop();
+				// const value = _function.apply(_this, array);
+				const value = _function(array);
+				this.context.frame.stack.push(value);
 				break;
 			}
 			case Opcode.Dependency: {
@@ -123,6 +120,7 @@ class VM {
 			case Opcode.Property: {
 				const dependency = this.context.frame.stack.pop();
 				const property = this.reader.read();
+				console.log("🤖 Property: %s", property);
 				this.context.frame.stack.push(dependency[property]);
 				break;
 			}
@@ -136,6 +134,16 @@ class VM {
 				const frame = this.context.popFrame();
 				this.reader.jump(frame.getTracebackPc() + 1);
 				this.context.frame.stack.push(frame.stack.pop());
+				break;
+			}
+			case Opcode.BuildArray: {
+				const length = this.reader.read();
+				console.log("🤖 BuildArray: %s", length);
+				const array = [];
+				for (let i = 0; i < length; i++) {
+					array.unshift(this.context.frame.stack.pop());
+				}
+				this.context.frame.stack.push(array);
 				break;
 			}
 		}

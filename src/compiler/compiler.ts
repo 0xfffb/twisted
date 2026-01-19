@@ -15,6 +15,7 @@ import {
 	BlockStatement,
 	FunctionDeclaration,
 	ReturnStatement,
+	ArrayExpression,
 } from "@babel/types";
 import { LabelType, Opcode } from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
@@ -81,7 +82,12 @@ class Compiler {
 		if (!argument) {
 			throw new Error("🤖 Return statement must have an argument");
 		}
+		
+		// ✅ 编译返回值表达式（结果在栈顶）
 		this.compileExpression(argument as Expression);
+		
+		// ✅ 生成 PopFrame（返回并跳转）
+		this.pushIr(createInstruction(Opcode.PopFrame));
 	}
 
 	private compileFunctionDeclaration(node: FunctionDeclaration) {
@@ -99,7 +105,9 @@ class Compiler {
 		const L_FUNCTION_START = this.bulldozer.label(id.name, LabelType.FUNCTION_START);
 		const L_FUNCTION_END = this.bulldozer.label(undefined, LabelType.FUNCTION_END);
 		this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_FUNCTION_END.id)]));
+		this.pushIr(createInstruction(Opcode.PushFrame));
 		this.bulldozer.record(L_FUNCTION_START.id, this.ir.length);
+		this.context.enter();
 		node.params.forEach((param) => {
 			switch (param.type) {
 				case "Identifier":
@@ -115,6 +123,7 @@ class Compiler {
 		});
 		this.compileBlockStatement(body as BlockStatement);
 		this.pushIr(createInstruction(Opcode.PopFrame));
+		this.context.exit();
 		this.bulldozer.record(L_FUNCTION_END.id, this.ir.length);
 	}
 
@@ -169,6 +178,7 @@ class Compiler {
 	}
 
 	private compileCallExpression(node: CallExpression) {
+		this.buildArrayVariable(node.arguments as ArrayExpression['elements']);
 		switch (node.callee.type) {
 			case "Identifier":
 				if (this.bulldozer.hasLabelByName(node.callee.name)) {
@@ -183,6 +193,8 @@ class Compiler {
 				break;
 			case "MemberExpression":
 				this.compileMemberExpression(node.callee as MemberExpression);
+				const ir = createInstruction(Opcode.Apply, []);
+				this.pushIr(ir);
 				break;
 			case "CallExpression":
 				this.compileCallExpression(node.callee as CallExpression);
@@ -190,13 +202,6 @@ class Compiler {
 			default:
 				throw new Error(`Unsupported callee type: ${node.callee.type}`);
 		}
-		node.arguments.forEach((argument) => {
-			this.compileExpression(argument as Expression);
-		});
-		const ir = createInstruction(Opcode.Call, [
-			createArg(ArgKind.ArgLength, node.arguments.length),
-		]);
-		this.pushIr(ir);
 		console.log("🤖 Compiling CallExpression");
 	}
 
@@ -225,6 +230,7 @@ class Compiler {
 				break;
 			case "MemberExpression":
 				this.compileMemberExpression(object as MemberExpression);
+
 				break;
 			case "CallExpression":
 				this.compileCallExpression(object as CallExpression);
@@ -317,6 +323,16 @@ class Compiler {
 
 	private pushIr(instruction: Instruction) {
 		this.ir.push(instruction);
+	}
+
+	private buildArrayVariable(args: ArrayExpression['elements']) {
+		args.forEach((arg) => {
+			this.compileExpression(arg as Expression);
+		});
+		const ir = createInstruction(Opcode.BuildArray, [
+			createArg(ArgKind.Number, args.length as number),
+		]);
+		this.pushIr(ir);
 	}
 }
 
