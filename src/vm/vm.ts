@@ -128,9 +128,6 @@ class VM {
 				const args = this.context.frame.stack.pop();
 				const pc = this.reader.getPc();
 				const frame = new Frame(pc, args);
-				for (let i = args.length - 1; i >= 0; i--) {
-					frame.stack.push(args[i]);
-				}
 				this.context.pushFrame(frame);
 				break;
 			}
@@ -148,6 +145,12 @@ class VM {
 					array.unshift(this.context.frame.stack.pop());
 				}
 				this.context.frame.stack.push(array);
+				break;
+			}
+			case Opcode.LoadParameter: {
+				const index = this.reader.read();
+				const parameter = this.context.frame.getParameter(index);
+				this.context.frame.stack.push(parameter);
 				break;
 			}
 		}

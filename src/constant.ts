@@ -17,7 +17,8 @@ const enum Opcode {
 	PopFrame = 0x0f,
 	Halt = 0x10,
 	BuildArray = 0x11,
-	BuildObject = 0x12
+	BuildObject = 0x12,
+	LoadParameter = 0x13
 }
 
 const OPCODE_NAMES: Record<number, string> = {
@@ -40,6 +41,7 @@ const OPCODE_NAMES: Record<number, string> = {
 	[Opcode.Halt]: "Halt",
 	[Opcode.BuildArray]: "BuildArray",
 	[Opcode.BuildObject]: "BuildObject",
+	[Opcode.LoadParameter]: "LoadParameter",
 };
 
 const enum LabelType {

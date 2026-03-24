@@ -34,7 +34,7 @@ test(123456789)
 function test1(a) {
 	return a + 1;
 }
-console.log(test1(2))
+console.log(test1(4))
 
     `;
 	const compiler = new Compiler(code);

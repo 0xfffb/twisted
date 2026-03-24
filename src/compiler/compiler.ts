@@ -108,10 +108,12 @@ class Compiler {
 		this.pushIr(createInstruction(Opcode.PushFrame));
 		this.bulldozer.record(L_FUNCTION_START.id, this.ir.length);
 		this.context.enter();
-		node.params.forEach((param) => {
+		node.params.forEach((param, index) => {
 			switch (param.type) {
 				case "Identifier":
 					this.context.scope.declare(param.name);
+					const load_param_ir = createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, index)]);
+					this.pushIr(load_param_ir);
 					const ir = createInstruction(Opcode.Store, [
 						createArg(ArgKind.Variable, this.context.scope.resolve(param.name)),
 					]);
