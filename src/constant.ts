@@ -18,7 +18,7 @@ const enum Opcode {
 	Halt = 0x10,
 	BuildArray = 0x11,
 	BuildObject = 0x12,
-	LoadParameter = 0x13
+	LoadParameter = 0x13,
 }
 
 const OPCODE_NAMES: Record<number, string> = {

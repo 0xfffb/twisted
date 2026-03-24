@@ -23,7 +23,6 @@ class Context {
 	public get scope(): Scope {
 		return this.scopes[this.scopes.length - 1];
 	}
-
 }
 
 export default Context;

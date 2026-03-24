@@ -82,7 +82,12 @@ class Label {
 	public type: LabelType;
 	public position: number | undefined;
 
-	constructor(id: number, name: string | undefined, type: LabelType, position: number | undefined) {
+	constructor(
+		id: number,
+		name: string | undefined,
+		type: LabelType,
+		position: number | undefined,
+	) {
 		this.id = id;
 		this.name = name;
 		this.type = type;

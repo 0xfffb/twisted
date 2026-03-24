@@ -7,7 +7,7 @@ import { OPCODE_NAMES } from "./constant.js";
 
 function debugInstruction(ir: Instruction[]) {
 	ir.forEach((instruction) => {
-		console.log({ opcode: OPCODE_NAMES[instruction.opcode], args: instruction.args })
+		console.log({ opcode: OPCODE_NAMES[instruction.opcode], args: instruction.args });
 	});
 }
 
@@ -53,9 +53,6 @@ try {
 	const vm = new VM(bytecode, dependencies);
 	const result = vm.execute();
 	console.log(result);
-
-
 }
 
-
-main()
+main();

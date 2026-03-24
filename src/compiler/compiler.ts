@@ -87,10 +87,10 @@ class Compiler {
 		if (!argument) {
 			throw new Error("🤖 Return statement must have an argument");
 		}
-		
+
 		// ✅ 编译返回值表达式（结果在栈顶）
 		this.compileExpression(argument as Expression);
-		
+
 		// ✅ 生成 PopFrame（返回并跳转）
 		this.pushIr(createInstruction(Opcode.PopFrame));
 	}
@@ -118,7 +118,9 @@ class Compiler {
 				case "Identifier":
 					this.context.scope.declare(param.name);
 					// 通过索引加载形参
-					const load_param_ir = createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, index)]);
+					const load_param_ir = createInstruction(Opcode.LoadParameter, [
+						createArg(ArgKind.Number, index),
+					]);
 					this.pushIr(load_param_ir);
 					// 将形参存储到变量表中
 					const ir = createInstruction(Opcode.Store, [
@@ -187,16 +189,22 @@ class Compiler {
 	}
 
 	private compileCallExpression(node: CallExpression) {
-		this.buildArrayVariable(node.arguments as ArrayExpression['elements']);
+		this.buildArrayVariable(node.arguments as ArrayExpression["elements"]);
 		switch (node.callee.type) {
 			case "Identifier":
 				if (this.bulldozer.hasLabelByName(node.callee.name)) {
 					this.pushIr(createInstruction(Opcode.PushFrame));
 					const L_FUNCTION_START = this.bulldozer.getLabelByName(node.callee.name);
-					const ir = createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_FUNCTION_START.id)]);
+					const ir = createInstruction(Opcode.Jmp, [
+						createArg(ArgKind.DynAddr, L_FUNCTION_START.id),
+					]);
 					this.pushIr(ir);
-					console.log("🤖 Compiling CallExpression function: %s, index: %s", node.callee.name, L_FUNCTION_START.id);
-					return
+					console.log(
+						"🤖 Compiling CallExpression function: %s, index: %s",
+						node.callee.name,
+						L_FUNCTION_START.id,
+					);
+					return;
 				}
 				this.compileIdentifier(node.callee as Identifier);
 				break;
@@ -336,7 +344,7 @@ class Compiler {
 		this.ir.push(instruction);
 	}
 
-	private buildArrayVariable(args: ArrayExpression['elements']) {
+	private buildArrayVariable(args: ArrayExpression["elements"]) {
 		args.forEach((arg) => {
 			this.compileExpression(arg as Expression);
 		});
@@ -351,9 +359,11 @@ class Compiler {
 			case "Identifier":
 				if (this.dependencies.includes(object.name)) {
 					const index = this.dependencies.indexOf(object.name);
-					this.pushIr(createInstruction(Opcode.Dependency, [
-						createArg(ArgKind.Dependency, index),
-					]));
+					this.pushIr(
+						createInstruction(Opcode.Dependency, [
+							createArg(ArgKind.Dependency, index),
+						]),
+					);
 				} else {
 					this.compileIdentifier(object as Identifier);
 				}
