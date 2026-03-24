@@ -382,17 +382,29 @@ class Compiler {
 	private compileTryStatement(node: TryStatement) {
 		const block = node.block;
 		const handler = node.handler;
-		const finalizer = node.finalizer;
+		const L_TRY_START = this.bulldozer.label(undefined, LabelType.TRY_START);
+		const L_TRY_END = this.bulldozer.label(undefined, LabelType.TRY_END);
+		const L_CATCH_START = this.bulldozer.label(undefined, LabelType.CATCH_START);
+		const L_CATCH_END = this.bulldozer.label(undefined, LabelType.CATCH_END);
+		this.bulldozer.record(L_TRY_START.id, this.ir.length);
 		this.compileBlockStatement(block as BlockStatement);
+		this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_CATCH_END.id)]));
+		this.bulldozer.record(L_TRY_END.id, this.ir.length);
+
+		this.bulldozer.record(L_CATCH_START.id, this.ir.length);
 		this.compileCatchClause(handler as CatchClause);
-		this.compileBlockStatement(finalizer as BlockStatement);
+		this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_CATCH_END.id)]));
+		this.bulldozer.record(L_CATCH_END.id, this.ir.length);
 	}
 
 	private compileCatchClause(node: CatchClause) {
+		console.log("🤖 Compiling CatchClause");
 		const param = node.param;
 		const body = node.body;
+		this.pushIr(createInstruction(Opcode.PushFrame));
 		this.compileExpression(param as Expression);
 		this.compileBlockStatement(body as BlockStatement);
+		this.pushIr(createInstruction(Opcode.PopFrame));
 	}
 }
 

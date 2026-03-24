@@ -31,13 +31,8 @@ function test(a) {
 }
 test(123456789)
 
-function test1(a) {
-	return a + 1;
-}
-console.log(test1(4))
-
 try {
-	console.log("test")
+	console.log(1);
 } catch (error) {
 	console.error(error);
 }
