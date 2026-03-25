@@ -23,6 +23,7 @@ import { LabelType, Opcode } from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
 import Context from "./context/context.js";
 import { Bulldozer, Label } from "./bulldozer.js";
+import ExceptionHandler from "./exception.js";
 
 class Compiler {
 	private program: Program;
@@ -30,6 +31,7 @@ class Compiler {
 	private context: Context;
 	private dependencies: string[];
 	private bulldozer: Bulldozer;
+	private exceptionHandler: ExceptionHandler;
 
 	constructor(source: string) {
 		this.program = parser.parse(source, { sourceType: "module" }).program;
@@ -37,6 +39,7 @@ class Compiler {
 		this.context = new Context();
 		this.dependencies = ["window", "console"];
 		this.bulldozer = new Bulldozer();
+		this.exceptionHandler = new ExceptionHandler();
 	}
 
 	compile(): Instruction[] {
@@ -382,6 +385,7 @@ class Compiler {
 	private compileTryStatement(node: TryStatement) {
 		const block = node.block;
 		const handler = node.handler;
+		
 		const L_TRY_START = this.bulldozer.label(undefined, LabelType.TRY_START);
 		const L_TRY_END = this.bulldozer.label(undefined, LabelType.TRY_END);
 		const L_CATCH_START = this.bulldozer.label(undefined, LabelType.CATCH_START);
@@ -398,8 +402,6 @@ class Compiler {
 	}
 
 	private compileCatchClause(node: CatchClause) {
-		// catch 作用域
-		this.pushIr(createInstruction(Opcode.PushFrame));
 		this.context.enter();
 		if (node.param && node.param.type === "Identifier") {
 			this.context.scope.declare(node.param.name);
@@ -410,7 +412,6 @@ class Compiler {
 		}
 		this.compileBlockStatement(node.body as BlockStatement);
 		this.context.exit();
-		this.pushIr(createInstruction(Opcode.PopFrame));
 	}
 }
 
