@@ -11,7 +11,7 @@ interface ExceptionHandlerEntry {
     type: ExceptionHandlerType;
 }
 
-class ExceptionHandler {
+class ExceptionTable{
     private entries: ExceptionHandlerEntry[];
 
     constructor() {
@@ -44,4 +44,4 @@ class ExceptionHandler {
 
 }
 
-export default ExceptionHandler;
+export default ExceptionTable;

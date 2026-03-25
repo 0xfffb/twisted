@@ -23,7 +23,7 @@ import { LabelType, Opcode } from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
 import Context from "./context/context.js";
 import { Bulldozer, Label } from "./bulldozer.js";
-import ExceptionHandler from "./exception.js";
+import ExceptionTable from "./exception.js";
 
 class Compiler {
 	private program: Program;
@@ -31,7 +31,7 @@ class Compiler {
 	private context: Context;
 	private dependencies: string[];
 	private bulldozer: Bulldozer;
-	private exceptionHandler: ExceptionHandler;
+	private exceptionTable: ExceptionTable;
 
 	constructor(source: string) {
 		this.program = parser.parse(source, { sourceType: "module" }).program;
@@ -39,7 +39,7 @@ class Compiler {
 		this.context = new Context();
 		this.dependencies = ["window", "console"];
 		this.bulldozer = new Bulldozer();
-		this.exceptionHandler = new ExceptionHandler();
+		this.exceptionTable = new ExceptionTable();
 	}
 
 	compile(): Instruction[] {
