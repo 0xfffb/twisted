@@ -11,21 +11,22 @@
     "start": "tsx src/index.ts",
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "build:vm:browser": "esbuild src/vm/vm.ts --bundle --minify --legal-comments=none --format=iife --platform=browser --global-name=TwistedVM --outfile=dist/browser/vm.js",
+    "build:vm:browser:esm": "esbuild src/vm/vm.ts --bundle --minify --legal-comments=none --format=esm --platform=browser --outfile=dist/browser/vm.esm.js",
     "format": "prettier --write \"src/**/*.{js,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\""
   },
-  "dependencies": {
+  "devDependencies": {
     "@babel/generator": "^7.28.3",
     "@babel/parser": "^7.24.7",
     "@babel/traverse": "^7.24.7",
     "@babel/types": "^7.24.7",
-    "jsdom": "^27.3.0"
-  },
-  "devDependencies": {
     "@types/babel__generator": "^7.6.8",
     "@types/babel__traverse": "^7.20.5",
     "@types/jsdom": "^27.0.0",
     "@types/node": "^24.10.1",
+    "esbuild": "^0.27.4",
+    "jsdom": "^27.3.0",
     "prettier": "^3.7.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
