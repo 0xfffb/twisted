@@ -462,38 +462,14 @@ class Compiler {
 	private compileAssignmentExpression(node: AssignmentExpression) {
 		switch (node.left.type) {
 			case "Identifier": {
-				const variableName = node.left.name;
-				const variableIndex = this.context.scope.resolve(variableName);
-				switch (node.operator) {
-					case "=":
-						this.compileExpression(node.right as Expression);
-						this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
-						this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
-						break;
-					case "+=":
-						this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
-						this.compileExpression(node.right as Expression);
-						this.pushIr(createInstruction(Opcode.Add));
-						this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
-						this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
-						break;
-					case "-=":
-						this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
-						this.compileExpression(node.right as Expression);
-						this.pushIr(createInstruction(Opcode.Sub));
-						this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
-						this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
-						break;
-					case "^=":
-						this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
-						this.compileExpression(node.right as Expression);
-						this.pushIr(createInstruction(Opcode.BitXor));
-						this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
-						this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
-						break;
-					default:
-						throw new Error(`Unsupported assignment operator: ${node.operator}`);
-				}
+				const variableIndex = this.context.scope.resolve(node.left.name);
+				this.compileExpression(node.right as Expression);
+				this.pushIr(
+					createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]),
+				);
+				this.pushIr(
+					createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+				);
 				break;
 			}
 			case "MemberExpression": {
@@ -523,7 +499,9 @@ class Compiler {
 						]),
 					);
 				} else {
-					throw new Error(`Unsupported member assignment property type: ${memberNode.property.type}`);
+					throw new Error(
+						`Unsupported member assignment property type: ${memberNode.property.type}`,
+					);
 				}
 				break;
 			}
