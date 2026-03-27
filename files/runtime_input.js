@@ -13,9 +13,12 @@ const fingerprint = {
 };
 
 const payload = window.JSON.stringify(fingerprint);
-const bytes = new window.TextEncoder().encode(payload);
-const digest = await window.crypto.subtle.digest("SHA-256", bytes);
-const hash = new window.DataView(digest).getUint32(0, false).toString(16);
-
-const result = { fingerprint: fingerprint, hash: "0x" + hash,  };
-window.JSON.stringify(result)
+function fallbackHash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  return ("00000000" + h.toString(16)).slice(-8);
+}
+({ hash: "0x" + fallbackHash(payload), fingerprint })

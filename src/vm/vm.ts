@@ -89,6 +89,16 @@ class VM {
 				}
 				break;
 			}
+			case Opcode.BitXor: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(b ^ a);
+				} else {
+					throw new Error("Invalid operands for BitXor");
+				}
+				break;
+			}
 			case Opcode.ShiftLeft: {
 				const a = this.context.frame.stack.pop();
 				const b = this.context.frame.stack.pop();
@@ -107,6 +117,12 @@ class VM {
 				} else {
 					throw new Error("Invalid operands for ShiftRightUnsigned");
 				}
+				break;
+			}
+			case Opcode.LessThan: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				this.context.frame.stack.push(b < a);
 				break;
 			}
 			case Opcode.Jmp: {

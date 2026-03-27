@@ -9,6 +9,9 @@ import {
 	CallExpression,
 	NewExpression,
 	AwaitExpression,
+	AssignmentExpression,
+	UpdateExpression,
+	UnaryExpression,
 	MemberExpression,
 	ObjectExpression,
 	ObjectProperty,
@@ -18,6 +21,7 @@ import {
 	VariableDeclarator,
 	VariableDeclaration,
 	IfStatement,
+	ForStatement,
 	BlockStatement,
 	FunctionDeclaration,
 	ReturnStatement,
@@ -73,6 +77,9 @@ class Compiler {
 				break;
 			case "IfStatement":
 				this.compileIfStatement(node as IfStatement);
+				break;
+			case "ForStatement":
+				this.compileForStatement(node as ForStatement);
 				break;
 			case "BlockStatement":
 				this.compileBlockStatement(node as BlockStatement);
@@ -174,6 +181,40 @@ class Compiler {
 		}
 	}
 
+	private compileForStatement(node: ForStatement) {
+		if (node.init) {
+			if (node.init.type === "VariableDeclaration") {
+				this.compileVariableDeclaration(node.init as VariableDeclaration);
+			} else {
+				this.compileExpression(node.init as Expression);
+			}
+		}
+
+		const L_TEST = this.bulldozer.label(undefined, LabelType.IF_THEN);
+		const L_BODY = this.bulldozer.label(undefined, LabelType.IF_THEN);
+		const L_END = this.bulldozer.label(undefined, LabelType.IF_END);
+
+		this.bulldozer.record(L_TEST.id, this.ir.length);
+
+		if (node.test) {
+			this.compileExpression(node.test as Expression);
+			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, L_BODY.id)]));
+			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_END.id)]));
+		} else {
+			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_BODY.id)]));
+		}
+
+		this.bulldozer.record(L_BODY.id, this.ir.length);
+		this.compileStatement(node.body as Statement);
+
+		if (node.update) {
+			this.compileExpression(node.update as Expression);
+		}
+
+		this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_TEST.id)]));
+		this.bulldozer.record(L_END.id, this.ir.length);
+	}
+
 	private compileExpression(node: Expression) {
 		switch (node.type) {
 			case "CallExpression":
@@ -206,6 +247,15 @@ class Compiler {
 				break;
 			case "ObjectExpression":
 				this.compileObjectExpression(node as ObjectExpression);
+				break;
+			case "AssignmentExpression":
+				this.compileAssignmentExpression(node as AssignmentExpression);
+				break;
+			case "UpdateExpression":
+				this.compileUpdateExpression(node as UpdateExpression);
+				break;
+			case "UnaryExpression":
+				this.compileUnaryExpression(node as UnaryExpression);
 				break;
 			default:
 				throw new Error(`Unsupported expression type: ${node.type}`);
@@ -295,6 +345,9 @@ class Compiler {
 			case "NewExpression":
 				this.compileNewExpression(object as NewExpression);
 				break;
+			case "BinaryExpression":
+				this.compileBinaryExpression(object as BinaryExpression);
+				break;
 			default:
 				throw new Error(`Unsupported object type: ${object.type}`);
 		}
@@ -374,6 +427,12 @@ class Compiler {
 			case "-":
 				this.pushIr(createInstruction(Opcode.Sub));
 				break;
+			case "*":
+				this.pushIr(createInstruction(Opcode.Mul));
+				break;
+			case "/":
+				this.pushIr(createInstruction(Opcode.Div));
+				break;
 			case "==":
 				this.pushIr(createInstruction(Opcode.Equal));
 				break;
@@ -383,15 +442,90 @@ class Compiler {
 			case "|":
 				this.pushIr(createInstruction(Opcode.BitOr));
 				break;
+			case "^":
+				this.pushIr(createInstruction(Opcode.BitXor));
+				break;
 			case "<<":
 				this.pushIr(createInstruction(Opcode.ShiftLeft));
 				break;
 			case ">>>":
 				this.pushIr(createInstruction(Opcode.ShiftRightUnsigned));
 				break;
+			case "<":
+				this.pushIr(createInstruction(Opcode.LessThan));
+				break;
 			default:
 				throw new Error(`Unsupported operator: ${operator}`);
 		}
+	}
+
+	private compileAssignmentExpression(node: AssignmentExpression) {
+		if (node.left.type !== "Identifier") {
+			throw new Error(`Unsupported assignment target type: ${node.left.type}`);
+		}
+
+		const variableName = node.left.name;
+		const variableIndex = this.context.scope.resolve(variableName);
+
+		switch (node.operator) {
+			case "=":
+				this.compileExpression(node.right as Expression);
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
+				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+				break;
+			case "+=":
+				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+				this.compileExpression(node.right as Expression);
+				this.pushIr(createInstruction(Opcode.Add));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
+				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+				break;
+			case "-=":
+				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+				this.compileExpression(node.right as Expression);
+				this.pushIr(createInstruction(Opcode.Sub));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
+				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+				break;
+			case "^=":
+				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+				this.compileExpression(node.right as Expression);
+				this.pushIr(createInstruction(Opcode.BitXor));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
+				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+				break;
+			default:
+				throw new Error(`Unsupported assignment operator: ${node.operator}`);
+		}
+	}
+
+	private compileUpdateExpression(node: UpdateExpression) {
+		if (node.argument.type !== "Identifier") {
+			throw new Error(`Unsupported update argument type: ${node.argument.type}`);
+		}
+
+		const variableIndex = this.context.scope.resolve(node.argument.name);
+		this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+		this.pushIr(createInstruction(Opcode.Push, [createArg(ArgKind.Number, 1)]));
+
+		if (node.operator === "++") {
+			this.pushIr(createInstruction(Opcode.Add));
+		} else if (node.operator === "--") {
+			this.pushIr(createInstruction(Opcode.Sub));
+		} else {
+			throw new Error(`Unsupported update operator: ${node.operator}`);
+		}
+
+		this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]));
+		this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]));
+	}
+
+	private compileUnaryExpression(node: UnaryExpression) {
+		if (node.operator === "-" && node.argument.type === "NumericLiteral") {
+			this.pushIr(createInstruction(Opcode.Push, [createArg(ArgKind.Number, -node.argument.value)]));
+			return;
+		}
+		throw new Error(`Unsupported unary expression: ${node.operator}`);
 	}
 
 	private compileVariableDeclaration(node: VariableDeclaration) {
@@ -461,6 +595,9 @@ class Compiler {
 				break;
 			case "NewExpression":
 				this.compileNewExpression(object as NewExpression);
+				break;
+			case "BinaryExpression":
+				this.compileBinaryExpression(object as BinaryExpression);
 				break;
 			default:
 				throw new Error(`Unsupported this object type: ${object.type}`);
