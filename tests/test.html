@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Twisted VM Browser Test</title>
+  </head>
+  <body>
+    <button id="run-vm">Run VM</button>
+    <pre id="output"></pre>
+
+    <!-- Switch to vm.obf.js to test obfuscated bundle -->
+    <script src="../dist/browser/vm.js"></script>
+    <script>
+      const output = document.getElementById("output");
+      const VM = TwistedVM.default;
+
+      const Opcode = {
+        Dependency: 0x0c,
+        Property: 0x0d,
+        Halt: 0x10,
+        BuildArray: 0x11,
+        LoadMeta: 0x16,
+        Apply: 0x0b
+      };
+
+      document.getElementById("run-vm").addEventListener("click", async () => {
+        // Program: console.log("hello from browser vm")
+        const bytecode = []
+        const meta = ['log', 'console', 'Date', 'getUTCFullYear', 'error', 'Hello World!']
+        const dependencies = [globalThis.window, globalThis.console];
+        const vm = new VM(bytecode, dependencies, meta);
+        const result = await vm.execute();
+        output.textContent = `VM finished. return value: ${String(result)}`;
+      });
+    </script>
+  </body>
+</html>
