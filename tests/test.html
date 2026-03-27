@@ -14,11 +14,14 @@
       const output = document.getElementById("output");
 
       document.getElementById("run-vm").addEventListener("click", async () => {
+        const start = performance.now();
         try {
           const result = await TwistedRuntime.run([window, console]);
-          output.textContent = `Runtime executed. return value: ${String(result)}`;
+          const latencyMs = performance.now() - start;
+          output.textContent = `Runtime executed. return value: ${String(result)}\nlatency: ${latencyMs.toFixed(2)} ms`;
         } catch (error) {
-          output.textContent = `Runtime failed: ${String(error)}`;
+          const latencyMs = performance.now() - start;
+          output.textContent = `Runtime failed: ${String(error)}\nlatency: ${latencyMs.toFixed(2)} ms`;
         }
       });
     </script>

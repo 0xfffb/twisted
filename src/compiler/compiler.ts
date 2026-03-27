@@ -292,6 +292,9 @@ class Compiler {
 			case "CallExpression":
 				this.compileCallExpression(object as CallExpression);
 				break;
+			case "NewExpression":
+				this.compileNewExpression(object as NewExpression);
+				break;
 			default:
 				throw new Error(`Unsupported object type: ${object.type}`);
 		}
@@ -446,6 +449,9 @@ class Compiler {
 				break;
 			case "CallExpression":
 				this.compileCallExpression(object as CallExpression);
+				break;
+			case "NewExpression":
+				this.compileNewExpression(object as NewExpression);
 				break;
 			default:
 				throw new Error(`Unsupported this object type: ${object.type}`);
