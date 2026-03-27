@@ -21,4 +21,4 @@ function fallbackHash(str) {
   }
   return ("00000000" + h.toString(16)).slice(-8);
 }
-({ hash: "0x" + fallbackHash(payload), fingerprint })
+window.JSON.stringify({ fingerprint, hash: "0x" + fallbackHash(payload) })
