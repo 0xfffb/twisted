@@ -77,6 +77,36 @@ class VM {
 				this.context.frame.stack.push(a === b);
 				break;
 			}
+			case Opcode.BitOr: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(b | a);
+				} else {
+					throw new Error("Invalid operands for BitOr");
+				}
+				break;
+			}
+			case Opcode.ShiftLeft: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(b << a);
+				} else {
+					throw new Error("Invalid operands for ShiftLeft");
+				}
+				break;
+			}
+			case Opcode.ShiftRightUnsigned: {
+				const a = this.context.frame.stack.pop();
+				const b = this.context.frame.stack.pop();
+				if (typeof a === "number" && typeof b === "number") {
+					this.context.frame.stack.push(b >>> a);
+				} else {
+					throw new Error("Invalid operands for ShiftRightUnsigned");
+				}
+				break;
+			}
 			case Opcode.Jmp: {
 				const target = this.reader.read();
 				this.reader.jump(target);

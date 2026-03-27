@@ -380,6 +380,15 @@ class Compiler {
 			case "===":
 				this.pushIr(createInstruction(Opcode.Equal));
 				break;
+			case "|":
+				this.pushIr(createInstruction(Opcode.BitOr));
+				break;
+			case "<<":
+				this.pushIr(createInstruction(Opcode.ShiftLeft));
+				break;
+			case ">>>":
+				this.pushIr(createInstruction(Opcode.ShiftRightUnsigned));
+				break;
 			default:
 				throw new Error(`Unsupported operator: ${operator}`);
 		}

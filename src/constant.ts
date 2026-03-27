@@ -22,6 +22,9 @@ const enum Opcode {
 	Await = 0x14,
 	Construct = 0x15,
 	LoadMeta = 0x16,
+	BitOr = 0x17,
+	ShiftLeft = 0x18,
+	ShiftRightUnsigned = 0x19,
 }
 
 const OPCODE_NAMES: Record<number, string> = {
@@ -48,6 +51,9 @@ const OPCODE_NAMES: Record<number, string> = {
 	[Opcode.Await]: "Await",
 	[Opcode.Construct]: "Construct",
 	[Opcode.LoadMeta]: "LoadMeta",
+	[Opcode.BitOr]: "BitOr",
+	[Opcode.ShiftLeft]: "ShiftLeft",
+	[Opcode.ShiftRightUnsigned]: "ShiftRightUnsigned",
 };
 
 const enum LabelType {
