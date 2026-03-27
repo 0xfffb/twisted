@@ -9,7 +9,7 @@ class VM {
 	private dependencies: object[];
 	private meta: string[];
 
-	constructor(bytecode: number[], dependencies: object[], meta: string[] = []) {
+	constructor(bytecode: number[], meta: string[] = [], dependencies: object[] = [window, console]) {
 		this.context = new Context();
 		this.reader = new BytecodeReader(bytecode);
 		this.dependencies = dependencies;

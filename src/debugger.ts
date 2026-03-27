@@ -55,7 +55,7 @@ console.log(t_s)
 	console.dir(bundle.bytecode, { depth: null });
 	const dom = new JSDOM();
 	const dependencies = [dom.window, dom.window.console];
-	const vm = new VM(bundle.bytecode, dependencies, bundle.meta);
+	const vm = new VM(bundle.bytecode, bundle.meta, dependencies);
 	const result = await vm.execute();
 	console.log(result);
 }
