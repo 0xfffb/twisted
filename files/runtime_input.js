@@ -38,6 +38,7 @@ function hookFetch() {
         }
         let headers = options.headers;
         const payload = window.JSON.stringify(getFingerprint());
+        payload += new window.Date().toISOString();
         const hash = getHashValue(payload);
         if (headers) {
             headers["X-Twisted-FP"] = hash;
@@ -54,6 +55,4 @@ function hookFetch() {
 const fingerprint = getFingerprint();
 const payload = window.JSON.stringify(fingerprint);
 hookFetch();
-
-const response = await window.fetch("http://127.0.0.1:5500/");
-window.JSON.stringify({ fingerprint, hash: "0x" +  getHashValue(payload) });
+true

@@ -3,27 +3,61 @@ import Context from "./context/context.js";
 import Frame from "./context/frame/frame.js";
 import BytecodeReader from "./reader.js";
 
-/** 闭包值的运行时标记 */
+/** 闭包值的运行时标记（同时适用于函数和普通对象） */
 interface ClosureValue {
 	$pc: number;
 	$caps: unknown[];
 }
 
+/** 检测一个值是否为 VM 闭包（兼容 function 和 object 两种形式） */
 function isClosure(v: unknown): v is ClosureValue {
-	return typeof v === "object" && v !== null && "$pc" in v;
+	return v != null && typeof (v as any).$pc === "number";
 }
 
 class VM {
 	private context: Context;
 	private reader: BytecodeReader;
+	private readonly _bytecode: number[];
 	private dependencies: object[];
 	private meta: string[];
 
 	constructor(bytecode: number[], meta: string[] = [], dependencies: object[] = [window, console]) {
+		this._bytecode = bytecode;
 		this.context = new Context();
 		this.reader = new BytecodeReader(bytecode);
 		this.dependencies = dependencies;
 		this.meta = meta;
+	}
+
+	/**
+	 * 从外部直接调用一个闭包。
+	 * 创建新的执行上下文，从 entryPc 开始，携带捕获变量和参数。
+	 * 当底层帧的 PopFrame 触发（tracebackPc 未设置）时返回结果。
+	 */
+	public async executeClosure(entryPc: number, caps: unknown[], args: unknown[]): Promise<unknown> {
+		this.reader.jump(entryPc);
+		const closureFrame = new Frame(undefined, args, caps);
+		this.context.pushFrame(closureFrame);
+
+		while (this.reader.hasNext()) {
+			const opcode = this.reader.read();
+			if (opcode === Opcode.Halt) break;
+			if (opcode === Opcode.PopFrame) {
+				const poppedFrame = this.context.popFrame();
+				let returnPc: number;
+				try {
+					returnPc = poppedFrame.getTracebackPc();
+				} catch (_) {
+					// tracebackPc 未设置 → 这是闭包自身的返回出口
+					return poppedFrame.stack.pop();
+				}
+				this.reader.jump(returnPc);
+				this.context.frame.stack.push(poppedFrame.stack.pop());
+			} else {
+				await this._execute(opcode);
+			}
+		}
+		return undefined;
 	}
 
 	public async execute() {
@@ -277,19 +311,31 @@ class VM {
 				break;
 			}
 			// ── 闭包扩展 ──────────────────────────────────────────────────
-			case Opcode.MakeClosure: {
-				// 格式：MakeClosure <entryPc> <numCaptures> [slot0 slot1 ...]
-				// 从当前帧按槽位快照外层局部变量，生成闭包值推入栈
-				const entryPc = this.reader.read();
-				const numCaptures = this.reader.read();
-				const caps: unknown[] = [];
-				for (let i = 0; i < numCaptures; i++) {
-					const slot = this.reader.read();
-					caps.push(this.context.frame.variables.get(slot));
-				}
-				this.context.frame.stack.push({ $pc: entryPc, $caps: caps } as ClosureValue);
-				break;
+		case Opcode.MakeClosure: {
+			// 格式：MakeClosure <entryPc> <numCaptures> [slot0 slot1 ...]
+			// 生成真正的 async 函数：VM 内部可通过 $pc/$caps 直接调度，
+			// 外部 JS 调用时创建子 VM 实例执行闭包体，两者均正确工作。
+			const entryPc = this.reader.read();
+			const numCaptures = this.reader.read();
+			const caps: unknown[] = [];
+			for (let i = 0; i < numCaptures; i++) {
+				const slot = this.reader.read();
+				caps.push(this.context.frame.variables.get(slot));
 			}
+			const bytecode = this._bytecode;
+			const meta = this.meta;
+			const deps = this.dependencies;
+			const fn = async (...args: unknown[]) => {
+				// 每次外部调用都使用独立的 VM 实例，避免并发污染
+				const subVm = new VM(bytecode, meta, deps);
+				return subVm.executeClosure(entryPc, caps, args);
+			};
+			// 挂载标记供 VM 内部 isClosure 检测和直接调度
+			(fn as any).$pc   = entryPc;
+			(fn as any).$caps = caps;
+			this.context.frame.stack.push(fn);
+			break;
+		}
 			case Opcode.LoadCapture: {
 				// 从当前帧的 captures 数组按下标加载捕获值
 				const index = this.reader.read();

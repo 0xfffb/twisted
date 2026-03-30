@@ -49,17 +49,10 @@ import VM from "./src/vm/vm.ts";
 const bytecode = ${bytecode};
 const meta = ${meta};
 
-async function run(dependencies = [window, console]) {
-  const vm = new VM(bytecode, meta, dependencies);
-  return vm.execute();
-}
-
-globalThis.TwistedRuntime = {
-  VM,
-  bytecode,
-  meta,
-  run
-};
+(async () => {
+    const vm = new VM(bytecode, meta, [window, console]);
+    await vm.execute();
+})();
 `;
 }
 

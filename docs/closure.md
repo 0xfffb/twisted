@@ -59,7 +59,7 @@ JavaScript 源码
 
 ## 四、运行时闭包值（ClosureValue）
 
-VM 中用一个普通对象表示"闭包值"：
+闭包在 VM 中以**真正的 async 函数**表示，同时携带 `$pc`/`$caps` 标记：
 
 ```typescript
 // src/vm/vm.ts
@@ -68,12 +68,28 @@ interface ClosureValue {
     $caps: unknown[]; // 捕获变量的快照数组（按顺序）
 }
 
+// 兼容 function 和 object 两种形式：只检查 $pc 是否为数字
 function isClosure(v: unknown): v is ClosureValue {
-    return typeof v === "object" && v !== null && "$pc" in v;
+    return v != null && typeof (v as any).$pc === "number";
 }
 ```
 
-`$pc` 是跳转目标，`$caps` 是捕获变量的**值快照**（当前实现为值拷贝，非引用）。
+**为什么必须是真正的函数，而不是普通对象？**
+
+如果 `MakeClosure` 生成 `{ $pc, $caps }` 普通对象并赋值给 `window.fetch`，则：
+
+- VM 内部调用：`isClosure` 识别 → 正常（VM 自己知道怎么跳转）
+- **外部 JS 调用**：`fetch(url)` → `TypeError: fetch is not a function` ❌
+
+解决方案：生成真正的 `async function`，并把 `$pc`/`$caps` 作为属性挂在函数上：
+
+```
+window.fetch = async (...args) => { ... }   ← 真正可调用
+window.fetch.$pc   = entryPc               ← VM 内部调度标记
+window.fetch.$caps = [nativeFetch, ...]    ← 捕获变量快照
+```
+
+这样两种调用路径都能正确工作。
 
 ---
 
@@ -237,19 +253,29 @@ VM 执行逻辑：
 
 ```typescript
 case Opcode.MakeClosure: {
-    const entryPc      = reader.read();
-    const numCaptures  = reader.read();
+    const entryPc     = reader.read();
+    const numCaptures = reader.read();
     const caps: unknown[] = [];
     for (let i = 0; i < numCaptures; i++) {
         const slot = reader.read();
         caps.push(frame.variables.get(slot)); // 快照当前帧的局部变量值
     }
-    frame.stack.push({ $pc: entryPc, $caps: caps });
+
+    // 生成真正的 async 函数，每次外部调用创建独立子 VM（并发安全）
+    const fn = async (...args: unknown[]) => {
+        const subVm = new VM(bytecode, meta, deps);
+        return subVm.executeClosure(entryPc, caps, args);
+    };
+    // 挂载标记供 VM 内部 isClosure 检测和直接调度
+    (fn as any).$pc   = entryPc;
+    (fn as any).$caps = caps;
+
+    frame.stack.push(fn);
     break;
 }
 ```
 
-执行完毕，栈上留下一个 `ClosureValue` 对象，供后续 `Store` 或直接调用。
+执行完毕，栈上留下一个**真正的 async 函数**（同时携带 `$pc`/`$caps` 标记），可直接赋值给 `window.fetch` 等全局属性。
 
 ### 6.3 LoadCapture 指令
 
@@ -260,6 +286,39 @@ case Opcode.LoadCapture: {
     break;
 }
 ```
+
+### 6.3b executeClosure 方法（外部调用入口）
+
+当外部 JS 调用 `window.fetch(url)` 时，`MakeClosure` 生成的 async 函数会创建一个新的 VM 实例并调用此方法：
+
+```typescript
+public async executeClosure(entryPc: number, caps: unknown[], args: unknown[]): Promise<unknown> {
+    this.reader.jump(entryPc);                             // 跳到函数体入口
+    const closureFrame = new Frame(undefined, args, caps); // 无 tracebackPc（作为终止哨兵）
+    this.context.pushFrame(closureFrame);
+
+    while (this.reader.hasNext()) {
+        const opcode = this.reader.read();
+        if (opcode === Opcode.Halt) break;
+        if (opcode === Opcode.PopFrame) {
+            const poppedFrame = this.context.popFrame();
+            try {
+                const returnPc = poppedFrame.getTracebackPc(); // 内层函数调用的正常返回
+                this.reader.jump(returnPc);
+                this.context.frame.stack.push(poppedFrame.stack.pop());
+            } catch (_) {
+                // tracebackPc 未设置 → 这是闭包自身的出口，返回结果
+                return poppedFrame.stack.pop();
+            }
+        } else {
+            await this._execute(opcode);
+        }
+    }
+    return undefined;
+}
+```
+
+**关键设计**：底层帧（`tracebackPc = undefined`）的 `PopFrame` 是终止信号。`getTracebackPc()` 抛出异常，`catch` 块捕获后返回栈顶值。每次外部调用使用独立的 VM 实例，天然并发安全。
 
 ### 6.4 InvokeValue 指令（调用闭包或原生函数）
 
@@ -317,16 +376,18 @@ this.reader.jump(frame.getTracebackPc()); // 精确返回调用点之后
 
 ## 七、完整数据流示例
 
-以下面的代码为例：
+以项目实际代码 `hookFetch` 为例：
 
 ```javascript
-function hookFetch(nativeFetch) {
-    window.fetch = function(url, options) {
-        // 使用了捕获的 nativeFetch
-        return nativeFetch(url, options);
+function hookFetch() {
+    const nativeFetch = window.fetch;         // 保存原生 fetch
+    window.fetch = function(url, options) {   // 闭包：捕获 nativeFetch
+        if (!options) { options = {}; }
+        // ... 注入指纹 header ...
+        return nativeFetch(url, options);     // 调用原生 fetch
     };
 }
-hookFetch(window.fetch);
+hookFetch();
 ```
 
 **编译阶段**：
@@ -342,40 +403,77 @@ hookFetch(window.fetch);
    - 退出作用域，`capturedSlots = [0]`
    - 生成 `MakeClosure <L_START> 1 0`（入口地址、1个捕获、来自槽0）
 
-**运行阶段**：
+**运行阶段 — VM 内执行 hookFetch()**：
 
 1. 执行 `MakeClosure`：读到 `entryPc=L_START`, `numCaptures=1`, `slot=0`
-   - 从当前帧取 `variables[0]`（即 `nativeFetch` 的当前值，原生 `window.fetch`）
-   - 推入 `{ $pc: L_START, $caps: [originalFetch] }`
-2. `Store` 把闭包值存入 `window.fetch`（通过 `SetProperty`）
-3. 之后调用 `window.fetch(url, options)` 触发 `Apply`：
-   - `isClosure(func)` 为 true
-   - 新建 `Frame(returnPc, [url, options], [originalFetch])`
-   - 跳入 `L_START`
-4. 函数体内 `LoadCapture 0`：从 `frame.captures[0]` 取出 `originalFetch`
-5. 调用原生 `fetch`，`PopFrame` 返回结果
+   - 从当前帧取 `variables[0]`（`nativeFetch` 的当前值 = 原生 `window.fetch`）
+   - 创建 `async fn(...args){ new VM(...).executeClosure(L_START, [originalFetch], args) }`
+   - 将 `$pc = L_START`、`$caps = [originalFetch]` 挂到 fn 上
+   - fn 推入栈
+2. `SetProperty "fetch"` 将 fn 写入 `window.fetch`
+
+此后 `window.fetch` 是一个真正的 async 函数。
+
+**运行阶段 — 外部 JS 调用 fetch(url)**：
+
+```
+外部 JS: await fetch("http://...")
+    → 调用 async fn("http://...")
+    → new VM(bytecode, meta, deps)
+    → subVm.executeClosure(L_START, [originalFetch], ["http://..."])
+        → jump(L_START)
+        → pushFrame(new Frame(undefined, args, [originalFetch]))
+        → 执行闭包体：
+            LoadCapture 0  →  frame.captures[0] = originalFetch
+            InvokeValue    →  originalFetch("http://...", options)
+            return Promise
+        → PopFrame 时 tracebackPc=undefined → catch → 返回 Promise
+    → 外部 await 拿到 Response
+```
+
+**运行阶段 — VM 内部再次调用（如测试场景）**：
+
+```
+VM 内部: InvokeValue
+    → isClosure(window.fetch) = true（$pc 存在）
+    → 直接 pushFrame + jump(func.$pc)（不创建子 VM）
+    → 在当前 VM 执行循环内继续执行
+```
 
 ---
 
-## 八、当前限制
+## 八、两种调用路径对比
+
+| | VM 内部调用 | 外部 JS 调用 |
+|---|---|---|
+| 触发方式 | `InvokeValue` / `Apply` opcode | 直接 `fn(...args)` |
+| 识别方式 | `isClosure(func)` 检测 `$pc` | 直接调用 async wrapper |
+| 执行方式 | push frame + jump（当前 VM） | `new VM(...).executeClosure(...)` |
+| 并发安全 | 单线程 VM 自然安全 | 每次调用独立 VM 实例 |
+| 性能 | 零开销（无额外分配） | 每次创建新 VM（适合低频调用） |
+
+---
+
+## 九、当前限制
 
 | 限制 | 原因 | 后续方向 |
 |---|---|---|
 | 只支持**单层**捕获 | `resolveBinding` 只向上查一层 | 递归传递 upvalue 链 |
 | 捕获为**值拷贝** | `$caps` 在 `MakeClosure` 时快照 | 引入 Upvalue Cell（共享引用） |
 | 不支持闭包内**写回**外层变量 | 没有 `StoreCapture` 指令 | 增加 `StoreCapture` 操作码 |
+| 外部调用每次创建新 VM | 并发安全换来的代价 | 引入 ClosureRunner 轻量执行器 |
 
 ---
 
-## 九、相关文件索引
+## 十、相关文件索引
 
 | 文件 | 职责 |
 |---|---|
-| `src/constant.ts` | 操作码定义（`MakeClosure` / `LoadCapture` / `InvokeValue`） |
+| `src/constant.ts` | 操作码定义（`MakeClosure` / `LoadCapture` / `InvokeValue` / `Not`） |
 | `src/compiler/context/scope.ts/variables.ts` | 变量表，提供 `tryResolve`（不报错的查找） |
 | `src/compiler/context/scope.ts/scope.ts` | 作用域，实现 `resolveBinding` 词法绑定解析 |
 | `src/compiler/context/context.ts` | 作用域栈，`enter()` 时传递 `parent` |
 | `src/compiler/compiler.ts` | `compileFunctionExpression`、`compileIdentifier` 闭包编译逻辑 |
 | `src/vm/context/frame/frame.ts` | 帧结构，新增 `captures` 字段 |
-| `src/vm/vm.ts` | `MakeClosure` / `LoadCapture` / `InvokeValue` 执行逻辑 |
-| `files/runtime_input.js` | 实际使用闭包的示例（`hookFetch`） |
+| `src/vm/vm.ts` | `MakeClosure`（生成真实函数）/ `executeClosure`（外部调用入口）/ `LoadCapture` / `InvokeValue` |
+| `files/runtime_input.js` | 实际使用闭包的示例（`hookFetch` 带容错的 `!options` 判断） |

@@ -6,22 +6,22 @@
     <title>Twisted VM Browser Test</title>
   </head>
   <body>
-    <button id="run-vm">Run VM</button>
+    <button id="run-fetch">Run Fetch</button>
     <pre id="output"></pre>
 
     <script src="../dist/browser/runtime.js"></script>
     <script>
       const output = document.getElementById("output");
 
-      document.getElementById("run-vm").addEventListener("click", async () => {
+      document.getElementById("run-fetch").addEventListener("click", async () => {
         const start = performance.now();
         try {
-          const result = await TwistedRuntime.run([window, console]);
+          const result = await fetch("http://127.0.0.1:5500/");
           const latencyMs = performance.now() - start;
-          output.textContent = `Runtime executed. return value: ${String(result)}\nlatency: ${latencyMs.toFixed(2)} ms`;
+          output.textContent = `Fetch executed. return value: ${String(await result.statusText)}\nlatency: ${latencyMs.toFixed(2)} ms`;
         } catch (error) {
           const latencyMs = performance.now() - start;
-          output.textContent = `Runtime failed: ${String(error)}\nlatency: ${latencyMs.toFixed(2)} ms`;
+          output.textContent = `Fetch failed: ${String(error)}\nlatency: ${latencyMs.toFixed(2)} ms`;
         }
       });
     </script>
