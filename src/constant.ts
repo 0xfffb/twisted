@@ -28,6 +28,8 @@ const enum Opcode {
 	LessThan = 0x1a,
 	BitXor = 0x1b,
 	SetProperty = 0x1c,
+	GetElement = 0x1d,
+	SetElement = 0x1e,
 }
 
 const OPCODE_NAMES: Record<number, string> = {
@@ -60,6 +62,8 @@ const OPCODE_NAMES: Record<number, string> = {
 	[Opcode.LessThan]: "LessThan",
 	[Opcode.BitXor]: "BitXor",
 	[Opcode.SetProperty]: "SetProperty",
+	[Opcode.GetElement]: "GetElement",
+	[Opcode.SetElement]: "SetElement",
 };
 
 const enum LabelType {

@@ -22,6 +22,19 @@ function fallbackHash(str) {
   return ("00000000" + h.toString(16)).slice(-8);
 }
 
+
+async function getHashValue(str) {
+  const encoder = new window.TextEncoder();
+  const data = encoder.encode(str);
+  const hash = await window.crypto.subtle.digest("SHA-256", data);
+  const hashArray = window.Array.from(new window.Uint8Array(hash));
+  let hashHex = ''
+  for (let i = 0; i < hashArray.length; i++) {
+    const byte = hashArray[i];
+    hashHex += byte.toString(16).padStart(2, "0");
+  }
+  return hashHex;
+}
 // function hookFetch() {
 //     const nativeFetch = window.fetch;
 //     window.fetch = function(url, options) {
@@ -38,7 +51,10 @@ function fallbackHash(str) {
 //     }
 // }
 
-window.JSON.stringify({ fingerprint, hash: "0x" + fallbackHash(payload) })
+
+const response = await window.fetch("http://127.0.0.1:5500/");
+
+window.JSON.stringify({ fingerprint, hash: "0x" + await getHashValue(payload) })
 
 
 // const ob = {a: 1, b: 2, c: 3};

@@ -201,6 +201,20 @@ class VM {
 				this.context.frame.stack.push(value);
 				break;
 			}
+			case Opcode.GetElement: {
+				const key = this.context.frame.stack.pop();
+				const object = this.context.frame.stack.pop();
+				this.context.frame.stack.push(object[key]);
+				break;
+			}
+			case Opcode.SetElement: {
+				const value = this.context.frame.stack.pop();
+				const key = this.context.frame.stack.pop();
+				const object = this.context.frame.stack.pop();
+				object[key] = value;
+				this.context.frame.stack.push(value);
+				break;
+			}
 			case Opcode.PushFrame: {
 				const args = this.context.frame.stack.pop();
 				const pc = this.reader.getPc();

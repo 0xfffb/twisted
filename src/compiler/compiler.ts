@@ -351,16 +351,21 @@ class Compiler {
 			default:
 				throw new Error(`Unsupported object type: ${object.type}`);
 		}
-		switch (property.type) {
-			case "Identifier":
-				console.log("🤖 Compiling MemberExpression property: %s", property.name);
-				const ir = createInstruction(Opcode.Property, [
-					createArg(ArgKind.Property, property.name),
-				]);
-				this.pushIr(ir);
-				break;
-			default:
-				throw new Error(`Unsupported property type: ${property.type}`);
+		if (node.computed) {
+			this.compileExpression(property as Expression);
+			this.pushIr(createInstruction(Opcode.GetElement));
+		} else {
+			switch (property.type) {
+				case "Identifier":
+					console.log("🤖 Compiling MemberExpression property: %s", property.name);
+					const ir = createInstruction(Opcode.Property, [
+						createArg(ArgKind.Property, property.name),
+					]);
+					this.pushIr(ir);
+					break;
+				default:
+					throw new Error(`Unsupported property type: ${property.type}`);
+			}
 		}
 		console.log("🤖 Compiling MemberExpression");
 	}
@@ -526,30 +531,35 @@ class Compiler {
 
 				const memberNode = node.left as MemberExpression;
 				this.compileThisObject(memberNode.object as Expression);
-				this.compileExpression(node.right as Expression);
-
-				if (memberNode.property.type === "Identifier" && !memberNode.computed) {
-					this.pushIr(
-						createInstruction(Opcode.SetProperty, [
-							createArg(ArgKind.Property, memberNode.property.name),
-						]),
-					);
-				} else if (memberNode.property.type === "StringLiteral") {
-					this.pushIr(
-						createInstruction(Opcode.SetProperty, [
-							createArg(ArgKind.Property, memberNode.property.value),
-						]),
-					);
-				} else if (memberNode.property.type === "NumericLiteral") {
-					this.pushIr(
-						createInstruction(Opcode.SetProperty, [
-							createArg(ArgKind.Property, String(memberNode.property.value)),
-						]),
-					);
+				if (memberNode.computed) {
+					this.compileExpression(memberNode.property as Expression);
+					this.compileExpression(node.right as Expression);
+					this.pushIr(createInstruction(Opcode.SetElement));
 				} else {
-					throw new Error(
-						`Unsupported member assignment property type: ${memberNode.property.type}`,
-					);
+					this.compileExpression(node.right as Expression);
+					if (memberNode.property.type === "Identifier") {
+						this.pushIr(
+							createInstruction(Opcode.SetProperty, [
+								createArg(ArgKind.Property, memberNode.property.name),
+							]),
+						);
+					} else if (memberNode.property.type === "StringLiteral") {
+						this.pushIr(
+							createInstruction(Opcode.SetProperty, [
+								createArg(ArgKind.Property, memberNode.property.value),
+							]),
+						);
+					} else if (memberNode.property.type === "NumericLiteral") {
+						this.pushIr(
+							createInstruction(Opcode.SetProperty, [
+								createArg(ArgKind.Property, String(memberNode.property.value)),
+							]),
+						);
+					} else {
+						throw new Error(
+							`Unsupported member assignment property type: ${memberNode.property.type}`,
+						);
+					}
 				}
 				break;
 			}
