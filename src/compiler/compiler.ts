@@ -318,6 +318,9 @@ class Compiler {
 			case "FunctionExpression":
 				this.compileFunctionExpression(node as FunctionExpression);
 				break;
+			case "ArrayExpression":
+				this.compileArrayExpression(node as ArrayExpression);
+				break;
 			default:
 				throw new Error(`Unsupported expression type: ${node.type}`);
 		}
@@ -713,6 +716,18 @@ class Compiler {
 
 	private pushIr(instruction: Instruction) {
 		this.ir.push(instruction);
+	}
+
+	private compileArrayExpression(node: ArrayExpression) {
+		const { elements } = node;
+		for (let i = 0; i < elements.length; i++) {
+			const el = elements[i];
+			if (el === null) {
+				throw new Error("Sparse array literal is not supported");
+			}
+			this.compileExpression(el as Expression);
+		}
+		this.pushIr(createInstruction(Opcode.BuildArray, [createArg(ArgKind.Number, elements.length)]));
 	}
 
 	private buildArrayVariable(args: ArrayExpression["elements"]) {
