@@ -28,6 +28,7 @@ import {
 	ReturnStatement,
 	ArrayExpression,
 	NullLiteral,
+	DebuggerStatement,
 	TryStatement,
 	CatchClause,
 } from "@babel/types";
@@ -97,9 +98,16 @@ class Compiler {
 			case "TryStatement":
 				this.compileTryStatement(node as TryStatement);
 				break;
+			case "DebuggerStatement":
+				this.compileDebuggerStatement(node as DebuggerStatement);
+				break;
 			default:
 				throw new Error(`Unsupported statement type: ${node.type}`);
 		}
+	}
+
+	private compileDebuggerStatement(_node: DebuggerStatement) {
+		this.pushIr(createInstruction(Opcode.Debugger, []));
 	}
 
 	private compileReturnStatement(node: ReturnStatement) {

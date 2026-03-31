@@ -363,6 +363,10 @@ class VM {
 				}
 				break;
 			}
+		case Opcode.Debugger: {
+			debugger;
+			break;
+		}
 		case Opcode.Not: {
 			const val = this.context.frame.stack.pop();
 			this.context.frame.stack.push(!val);

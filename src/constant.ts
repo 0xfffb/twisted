@@ -36,6 +36,8 @@ const enum Opcode {
 	Not = 0x22,
 	/** 栈上压入 JavaScript null */
 	PushNull = 0x23,
+	/** 触发 JavaScript debugger 断点 */
+	Debugger = 0x24,
 }
 
 const OPCODE_NAMES: Record<number, string> = {
@@ -75,6 +77,7 @@ const OPCODE_NAMES: Record<number, string> = {
 	[Opcode.InvokeValue]:  "InvokeValue",
 	[Opcode.Not]: "Not",
 	[Opcode.PushNull]: "PushNull",
+	[Opcode.Debugger]: "Debugger",
 };
 
 const enum LabelType {
