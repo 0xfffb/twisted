@@ -147,28 +147,18 @@ function getFingerprint() {
 async function testDebuggerRunningTimeDectect() {
     const code = "debugger;"
     const t1 = window.performance.now();
-    const blob = new window.Blob([code], { type: 'application/javascript' });
-    await new window.Worker(window.URL.createObjectURL(blob));
+    // const blob = new window.Blob([code], { type: 'application/javascript' });
+    // await new window.Worker(window.URL.createObjectURL(blob));
+    window.eval(code);
     const t2 = window.performance.now();
     return t2 - t1;
-}
-
-function windowSizeDebuggerDectect() {
-    return window.outerWidth - window.innerWidth
-}
-
-function consoleDebugerDectect() {
-    if (window.onConsole) {
-        return true
-    }
-    return false
 }
 
 async function dectectDebugger() {
     let debugMetrics = []
     debugMetrics.push(await testDebuggerRunningTimeDectect());
-    debugMetrics.push(windowSizeDebuggerDectect());
-    debugMetrics.push(consoleDebugerDectect());
+    debugMetrics.push(window.outerWidth - window.innerWidth);
+    debugMetrics.push((window.onconsole === true));
     return debugMetrics;
 }
 
@@ -177,14 +167,59 @@ async function rsaEncrypt(plaintext) {
     return true;
 }
 
+function dectectHook() {
+  const hooks = []
+  hooks.push(!(window.console.toString() === "[object console]"))
+  hooks.push(!(window.eval.toString() === "function eval() { [native code] }"))
+  hooks.push(!(window.eval.name === "eval"))
+  hooks.push((window.eval.length === 0))
+  return hooks;
+}
 
+function dectectCdp() {
+  // 2025.5.9 chrome 提交补丁修复
+  const err = new window.Error();
+  window.Object.defineProperty(err, "stack", {
+    get: function() {
+      if (window.cdpDetected) {
+        window.cdpDetected = window.cdpDetected + 1
+      } else {
+        window.cdpDetected = 1
+      }
+      return "detected";
+    }
+  });
+  console.debug(err);
+  return "";
+}
+
+
+function dectectAutomation() {
+  const automation = []
+  automation.push(dectectCdp())
+  automation.push((window.navigator.webdriver === true))
+  automation.push(!(window.navigator.userAgent.includes("HeadlessChrome")))
+  automation.push(!(window.navigator.userAgent.includes("Headless")))
+
+  // 窗口
+  automation.push(window.outerWidth)
+  automation.push(window.outerHeight)
+  automation.push(window.screenX)
+  automation.push(window.screenY)
+
+  // 自动化工具 环境
+  automation.push((window._Selenium_IDE_Anchor === true))
+  automation.push((window.callPhantom === true))
+  automation.push((window.__puppeteer_evaluation_script__ === true))
+  automation.push((window.__playwright_evaluation_script__ === true))
+  return automation;
+}
 async function getSign() {
     let payload = {
         fingerprint: getFingerprint(),
         debugger: await dectectDebugger(),
-        automation: false,
-        headless: false,
-        hook: false,
+        automation: dectectAutomation(),
+        hook: dectectHook(),
     }
     const signString = window.JSON.stringify(payload) + "|" + window.Date.now() + "|" + window.Math.floor(window.Math.random() * 10000);
     console.log("signString: " + signString)
@@ -194,30 +229,36 @@ async function getSign() {
 
 function hookFetch() {
     const nativeFetch = window.fetch;
-    window.fetch = function(url, options) {
-        if (!options) {
+    window.Object.defineProperty(window.window, "fetch", {
+      value: function(url, options) {
+          if (!options) {
             options = {};
-        }
-        let headers = options.headers;
-        if (headers) {
-            headers["X-Twisted-Sign"] = getSign();
-        } else {
-            headers = {
-                "X-Twisted-Sign": getSign(),
-            };
-        }
-        options.headers = headers;
-        return nativeFetch(url, options);
-    };
+          }
+          let headers = options.headers;
+          if (!headers) {
+            headers = {};
+          }
+          headers["X-Twisted-Sign"] = getSign();
+          options.headers = headers;
+          return nativeFetch(url, options);
+      }
+    });
+
+    window.Object.defineProperty(window.fetch, "toString", {
+      value: function() {
+        return "function fetch() { [native code] }"
+      }
+    });
 }
 
-function hookConsoleLog() {
-    var nativeLog = window.console.log;
+
+function hooks() {
+  dectectCdp()
+  hookFetch();
 }
 
 function init() {
-    // hookConsoleLog()
-    hookFetch();
+  hooks()
 }
 
 init()

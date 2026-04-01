@@ -18,7 +18,7 @@ async function main() {
 // 	console.log("find tws")
 // }
 
-if (false) { console.log("hit"); } else { console.log("miss"); }
+if (!window.tws) { console.log("hit"); } else { console.log("miss"); }
     `;
 	const compiler = new Compiler(code);
 	const ir = compiler.compile();
