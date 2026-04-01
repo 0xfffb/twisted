@@ -37,6 +37,9 @@ const obfuscatorOptions: JavaScriptObfuscator.ObfuscatorOptions = {
 	// debugProtection: true,
 	// debugProtectionInterval: 2000,
 	// reservedNames: ["^TwistedRuntimeBundle$", "^TwistedRuntime$"],
+	stringArrayCallsTransform: true,
+	stringArrayCallsTransformThreshold: 1,
+	stringArrayIndexesType: ["hexadecimal-number"],
 };
 
 function createRuntimeEntry(bundle: Bundle): string {
