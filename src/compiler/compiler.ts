@@ -475,7 +475,8 @@ class Compiler {
 	}
 
 	private compileBooleanLiteral(node: BooleanLiteral) {
-		this.pushIr(createInstruction(Opcode.Push, [createArg(ArgKind.Number, node.value)]));
+		const value = node.value ? 1 : 0;
+		this.pushIr(createInstruction(Opcode.Push, [createArg(ArgKind.Number, value)]));
 		console.log("🤖 Compiling BooleanLiteral");
 	}
 
