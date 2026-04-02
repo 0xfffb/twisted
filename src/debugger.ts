@@ -4,6 +4,8 @@ import VM from "./vm/vm.js";
 import { JSDOM } from "jsdom";
 import { Instruction } from "./instruction.js";
 import { OPCODE_NAMES } from "./constant.js";
+import { ArithmeticDeformationPass } from "./obfuscator/passes/arithmetic.js";
+import Obfuscator from "./obfuscator/obfuscator.js";
 
 function debugInstruction(ir: Instruction[]) {
 	ir.forEach((instruction) => {
@@ -17,16 +19,26 @@ async function main() {
 // if (window.tws) {
 // 	console.log("find tws")
 // }
+const a = 1;
+const b = 2;
+const c = a + b;
+console.log(c);
 
 if (!window.tws) { console.log("hit"); } else { console.log("miss"); }
     `;
 	const compiler = new Compiler(code);
 	const ir = compiler.compile();
+
+	const passes = [new ArithmeticDeformationPass()];
+	const obfuscator = new Obfuscator(passes);
+
+	const obfuscatedIr = obfuscator.obfuscate(ir);
 	const assembler = new Assembler();
-	const bundle = assembler.assemble(ir);
+	const bundle = assembler.assemble(obfuscatedIr);
 	debugInstruction(ir);
 	console.dir(bundle.meta, { depth: null });
 	console.dir(bundle.bytecode, { depth: null });
+	console.log("IR length:", obfuscatedIr.length);
 	const dom = new JSDOM();
 	const dependencies = [dom.window, dom.window.console];
 	const vm = new VM(bundle.bytecode, bundle.meta, dependencies);
