@@ -78,7 +78,6 @@ function downlevelToEs5(code: string): string {
 async function main() {
 	const bundlePath = process.argv[2] ?? "dist/runtime/bundle.json";
 	const outFile = process.argv[3] ?? "dist/browser/runtime.js";
-	const outFileEsm = process.argv[4] ?? "dist/browser/runtime.esm.js";
 
 	const bundleRaw = await readFile(bundlePath, "utf-8");
 	const bundle = JSON.parse(bundleRaw) as Bundle;
