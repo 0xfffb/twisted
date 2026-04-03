@@ -7,15 +7,14 @@
   "type": "module",
   "main": "src/debugger.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "tsx src/debugger.ts",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "build:bundle": "node --import tsx src/builder/compiler.ts",
     "build:runtime": "node --import tsx src/builder/runtime.ts",
     "build:runtime:all": "npm run build:bundle && npm run build:runtime",
-    "build:vm:browser": "esbuild src/vm/vm.ts --bundle --minify --legal-comments=none --format=iife --platform=browser --global-name=TwistedVM --outfile=dist/browser/vm.js",
-    "build:vm:browser:esm": "esbuild src/vm/vm.ts --bundle --minify --legal-comments=none --format=esm --platform=browser --outfile=dist/browser/vm.esm.js",
     "format": "prettier --write \"src/**/*.{js,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\""
   },
@@ -33,6 +32,7 @@
     "jsdom": "^27.3.0",
     "prettier": "^3.7.4",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
   }
 }
