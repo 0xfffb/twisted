@@ -246,7 +246,7 @@ class VM {
 		const a = this.context.frame.stack.pop();
 		const b = this.context.frame.stack.pop();
 		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(a / b);
+			this.context.frame.stack.push(b / a);
 		} else {
 			throw new Error("Invalid operands for Div");
 		}
