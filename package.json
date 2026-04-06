@@ -7,8 +7,8 @@
   "type": "module",
   "main": "src/debugger.ts",
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "node --import tsx --test tests/compiler.test.ts tests/vm.test.ts",
+    "test:watch": "node --import tsx --test --watch tests/compiler.test.ts tests/vm.test.ts",
     "start": "tsx src/debugger.ts",
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -32,7 +32,6 @@
     "jsdom": "^27.3.0",
     "prettier": "^3.7.4",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.2"
+    "typescript": "^5.9.3"
   }
 }

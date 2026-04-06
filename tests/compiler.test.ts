@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import Compiler from "../src/compiler/compiler.js";
 import { Opcode, OPCODE_NAMES } from "../src/constant.js";
 import { ArgKind, type Instruction } from "../src/instruction.js";
@@ -9,78 +10,77 @@ function compile(source: string): Instruction[] {
 
 /** 最后一条须为 Halt（compile 末尾固定追加） */
 function expectEndsWithHalt(ir: Instruction[]) {
-	expect(ir.length).toBeGreaterThan(0);
+	assert.ok(ir.length > 0);
 	const last = ir[ir.length - 1];
-	expect(last.opcode).toBe(Opcode.Halt);
-	expect(last.args).toEqual([]);
+	assert.strictEqual(last.opcode, Opcode.Halt);
+	assert.deepStrictEqual(last.args, []);
 }
 
 describe("Compiler / 基础", () => {
 	it("空程序仍生成 Halt", () => {
 		const ir = compile("");
 		expectEndsWithHalt(ir);
-		expect(ir.length).toBe(1);
+		assert.strictEqual(ir.length, 1);
 	});
 
 	it("不支持的语句类型会抛错", () => {
-		expect(() => compile("class A {}")).toThrow(/Unsupported statement type/);
+		assert.throws(() => compile("class A {}"), /Unsupported statement type/);
 	});
 });
 
 describe("Compiler / 字面量与表达式", () => {
 	it("数字字面量 1 + 2 生成 Push, Push, Add", () => {
 		const ir = compile("1 + 2;");
-		expect(ir[0].opcode).toBe(Opcode.Push);
-		expect(ir[0].args[0].kind).toBe(ArgKind.Number);
-		expect(ir[0].args[0].value).toBe(1);
-		expect(ir[1].opcode).toBe(Opcode.Push);
-		expect(ir[1].args[0].value).toBe(2);
-		expect(ir[2].opcode).toBe(Opcode.Add);
+		assert.strictEqual(ir[0].opcode, Opcode.Push);
+		assert.strictEqual(ir[0].args[0].kind, ArgKind.Number);
+		assert.strictEqual(ir[0].args[0].value, 1);
+		assert.strictEqual(ir[1].opcode, Opcode.Push);
+		assert.strictEqual(ir[1].args[0].value, 2);
+		assert.strictEqual(ir[2].opcode, Opcode.Add);
 		expectEndsWithHalt(ir);
 	});
 
 	it("字符串字面量 Push(String)", () => {
-		// 注意：顶层 `"hello";` 会被 Babel 解析为 directive，无语句体；用括号避免
 		const ir = compile(`("hello");`);
-		expect(ir[0].opcode).toBe(Opcode.Push);
-		expect(ir[0].args[0].kind).toBe(ArgKind.String);
-		expect(ir[0].args[0].value).toBe("hello");
+		assert.strictEqual(ir[0].opcode, Opcode.Push);
+		assert.strictEqual(ir[0].args[0].kind, ArgKind.String);
+		assert.strictEqual(ir[0].args[0].value, "hello");
 		expectEndsWithHalt(ir);
 	});
 
 	it("布尔字面量", () => {
 		const ir = compile("true;");
-		expect(ir[0].opcode).toBe(Opcode.Push);
-		expect(ir[0].args[0].kind).toBe(ArgKind.Number);
-		expect(ir[0].args[0].value).toBe(1);
+		assert.strictEqual(ir[0].opcode, Opcode.Push);
+		assert.strictEqual(ir[0].args[0].kind, ArgKind.Number);
+		assert.strictEqual(ir[0].args[0].value, 1);
 		expectEndsWithHalt(ir);
 	});
 
 	it("null 为 PushNull", () => {
 		const ir = compile("null;");
-		expect(ir[0].opcode).toBe(Opcode.PushNull);
-		expect(ir[0].args).toEqual([]);
+		assert.strictEqual(ir[0].opcode, Opcode.PushNull);
+		assert.deepStrictEqual(ir[0].args, []);
 		expectEndsWithHalt(ir);
 	});
 
 	it("一元 ! 生成 Not", () => {
 		const ir = compile("!false;");
-		expect(ir[0].opcode).toBe(Opcode.Push);
-		expect(ir[1].opcode).toBe(Opcode.Not);
+		assert.strictEqual(ir[0].opcode, Opcode.Push);
+		assert.strictEqual(ir[1].opcode, Opcode.Not);
 		expectEndsWithHalt(ir);
 	});
 
 	it("一元负数字面量 -1 为单条 Push(-1)", () => {
 		const ir = compile("-1;");
-		expect(ir[0].opcode).toBe(Opcode.Push);
-		expect(ir[0].args[0].kind).toBe(ArgKind.Number);
-		expect(ir[0].args[0].value).toBe(-1);
+		assert.strictEqual(ir[0].opcode, Opcode.Push);
+		assert.strictEqual(ir[0].args[0].kind, ArgKind.Number);
+		assert.strictEqual(ir[0].args[0].value, -1);
 		expectEndsWithHalt(ir);
 	});
 });
 
 describe("Compiler / 二元运算 opcode", () => {
-	const cases: { code: string; expected: Opcode }[] = [
+	const cases: { code: string; expected: number }[] = [
 		{ code: "1 - 2;", expected: Opcode.Sub },
 		{ code: "2 * 3;", expected: Opcode.Mul },
 		{ code: "8 / 2;", expected: Opcode.Div },
@@ -96,7 +96,7 @@ describe("Compiler / 二元运算 opcode", () => {
 	for (const { code, expected } of cases) {
 		it(`\`${code.trim()}\` → ${OPCODE_NAMES[expected] ?? expected}`, () => {
 			const ir = compile(code);
-			expect(ir[2].opcode).toBe(expected);
+			assert.strictEqual(ir[2].opcode, expected);
 			expectEndsWithHalt(ir);
 		});
 	}
@@ -109,12 +109,12 @@ describe("Compiler / 变量", () => {
 			a;
 		`);
 		const push = ir.findIndex((i) => i.opcode === Opcode.Push && i.args[0]?.value === 1);
-		expect(push).toBeGreaterThanOrEqual(0);
-		expect(ir[push + 1].opcode).toBe(Opcode.Store);
-		expect(ir[push + 1].args[0].kind).toBe(ArgKind.Variable);
+		assert.ok(push >= 0);
+		assert.strictEqual(ir[push + 1].opcode, Opcode.Store);
+		assert.strictEqual(ir[push + 1].args[0].kind, ArgKind.Variable);
 		const loadIdx = ir.findIndex((i) => i.opcode === Opcode.Load);
-		expect(loadIdx).toBeGreaterThan(0);
-		expect(ir[loadIdx].args[0].kind).toBe(ArgKind.Variable);
+		assert.ok(loadIdx > 0);
+		assert.strictEqual(ir[loadIdx].args[0].kind, ArgKind.Variable);
 		expectEndsWithHalt(ir);
 	});
 });
@@ -127,9 +127,9 @@ describe("Compiler / 控制流", () => {
 			}
 		`);
 		const opcodes = ir.map((i) => i.opcode);
-		expect(opcodes).toContain(Opcode.JmpIf);
-		expect(opcodes).toContain(Opcode.Jmp);
-		expect(opcodes.filter((o) => o === Opcode.Jmp).length).toBeGreaterThanOrEqual(1);
+		assert.ok(opcodes.includes(Opcode.JmpIf));
+		assert.ok(opcodes.includes(Opcode.Jmp));
+		assert.ok(opcodes.filter((o) => o === Opcode.Jmp).length >= 1);
 		expectEndsWithHalt(ir);
 	});
 
@@ -140,11 +140,11 @@ describe("Compiler / 控制流", () => {
 			}
 		`);
 		const dyn = ir.flatMap((i) => i.args).filter((a) => a.kind === ArgKind.DynAddr);
-		expect(dyn.length).toBeGreaterThan(0);
+		assert.ok(dyn.length > 0);
 		for (const a of dyn) {
-			expect(typeof a.value).toBe("number");
-			expect(a.value).toBeGreaterThanOrEqual(0);
-			expect(a.value).toBeLessThan(ir.length);
+			assert.strictEqual(typeof a.value, "number");
+			assert.ok(a.value >= 0);
+			assert.ok(a.value < ir.length);
 		}
 	});
 });
@@ -158,8 +158,8 @@ describe("Compiler / 函数声明", () => {
 			2;
 		`);
 		const opcodes = ir.map((i) => i.opcode);
-		expect(opcodes).toContain(Opcode.Jmp);
-		expect(opcodes).toContain(Opcode.PopFrame);
+		assert.ok(opcodes.includes(Opcode.Jmp));
+		assert.ok(opcodes.includes(Opcode.PopFrame));
 		expectEndsWithHalt(ir);
 	});
 });
@@ -167,7 +167,7 @@ describe("Compiler / 函数声明", () => {
 describe("Compiler / Debugger", () => {
 	it("debugger 语句生成 Debugger", () => {
 		const ir = compile("debugger;");
-		expect(ir[0].opcode).toBe(Opcode.Debugger);
+		assert.strictEqual(ir[0].opcode, Opcode.Debugger);
 		expectEndsWithHalt(ir);
 	});
 });
