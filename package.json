@@ -5,16 +5,18 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "src/debugger.ts",
+  "main": "dist/cli.js",
+  "bin": {
+    "twisted": "dist/cli.js"
+  },
   "scripts": {
+    "cli": "node --import tsx src/cli.ts",
     "test": "node --import tsx --test tests/compiler.test.ts tests/vm.test.ts tests/obfuscator.test.ts",
-    "test:watch": "node --import tsx --test --watch tests/compiler.test.ts tests/vm.test.ts tests/obfuscator.test.ts",
-    "start": "tsx src/debugger.ts",
+    "debugger": "tsx src/debugger.ts",
     "build": "tsc",
-    "build:watch": "tsc --watch",
     "build:bundle": "node --import tsx src/builder/compiler.ts",
     "build:runtime": "node --import tsx src/builder/runtime.ts",
-    "build:runtime:all": "npm run build:bundle && npm run build:runtime",
+    "build:all": "npm run build:bundle && npm run build:runtime",
     "format": "prettier --write \"src/**/*.{js,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\""
   },

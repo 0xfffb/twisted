@@ -2,10 +2,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { build } from "esbuild";
 import JavaScriptObfuscator from "javascript-obfuscator";
 import * as ts from "typescript";
+import { dirname } from "node:path";
 
 interface Bundle {
 	bytecode: number[];
 	meta: string[];
+}
+interface RuntimeBuildOptions {
+	obfuscate?: boolean;
 }
 
 const obfuscatorOptions: JavaScriptObfuscator.ObfuscatorOptions = {
@@ -73,17 +77,19 @@ function downlevelToEs5(code: string): string {
 		},
 		fileName: "runtime-es5.js",
 	}).outputText;
-  }
+}
 
-async function main() {
-	const bundlePath = process.argv[2] ?? "dist/runtime/bundle.json";
-	const outFile = process.argv[3] ?? "dist/browser/runtime.js";
-
+async function buildRuntime(
+	bundlePath: string,
+	outFile: string,
+	options: RuntimeBuildOptions = {},
+): Promise<void> {
 	const bundleRaw = await readFile(bundlePath, "utf-8");
 	const bundle = JSON.parse(bundleRaw) as Bundle;
+	const obfuscate = options.obfuscate ?? false;
 
-	await mkdir("dist/browser", { recursive: true });
 	const entry = createRuntimeEntry(bundle);
+	await mkdir(dirname(outFile), { recursive: true });
 
 	await build({
 		stdin: {
@@ -98,18 +104,17 @@ async function main() {
 		drop: ["console"],
 		format: "iife",
 		platform: "browser",
-		// globalName: "TwistedRuntimeBundle",
 		outfile: outFile,
 	});
 
-	const iifeSource = await readFile(outFile, "utf-8");
-
-	const es5Entry = downlevelToEs5(iifeSource);
-
-	const iifeObfResult = JavaScriptObfuscator.obfuscate(es5Entry, obfuscatorOptions);
-	await writeFile(outFile, iifeObfResult.getObfuscatedCode(), "utf-8");
+	if (obfuscate) {
+		const iifeSource = await readFile(outFile, "utf-8");
+		const es5Entry = downlevelToEs5(iifeSource);
+		const iifeObfResult = JavaScriptObfuscator.obfuscate(es5Entry, obfuscatorOptions);
+		await writeFile(outFile, iifeObfResult.getObfuscatedCode(), "utf-8");
+	}
 
 	console.log(`Runtime bundles written to: ${outFile}`);
 }
 
-void main();
+export { buildRuntime };

@@ -16,7 +16,12 @@ function randBool(): boolean {
 }
 
 /** Load+Load+Add：A+B = (A-t)+(B+t) 或 (A+t)+(B-t)，两种 7 指令序列随机 */
-function expandLoadLoadAdd(ua: { kind: ArgKind; value: number }, ub: { kind: ArgKind; value: number }, t: number, alt: boolean): Instruction[] {
+function expandLoadLoadAdd(
+	ua: { kind: ArgKind; value: number },
+	ub: { kind: ArgKind; value: number },
+	t: number,
+	alt: boolean,
+): Instruction[] {
 	const sa = ua.value as number;
 	const sb = ub.value as number;
 	if (!alt) {
@@ -42,7 +47,12 @@ function expandLoadLoadAdd(ua: { kind: ArgKind; value: number }, ub: { kind: Arg
 }
 
 /** Load+Load+Sub：A-B = (A+t)-(B+t) 或 (A-t)-(B-t)，两种 7 指令序列随机 */
-function expandLoadLoadSub(ua: { kind: ArgKind; value: number }, ub: { kind: ArgKind; value: number }, t: number, alt: boolean): Instruction[] {
+function expandLoadLoadSub(
+	ua: { kind: ArgKind; value: number },
+	ub: { kind: ArgKind; value: number },
+	t: number,
+	alt: boolean,
+): Instruction[] {
 	const sa = ua.value as number;
 	const sb = ub.value as number;
 	if (!alt) {

@@ -22,7 +22,11 @@ class VM {
 	private meta: string[];
 	private handlers: Record<number, any>;
 
-	constructor(bytecode: number[], meta: string[] = [], dependencies: object[] = [window, console]) {
+	constructor(
+		bytecode: number[],
+		meta: string[] = [],
+		dependencies: object[] = [window, console],
+	) {
 		this._bytecode = bytecode;
 		this.context = new Context();
 		this.reader = new BytecodeReader(bytecode);
@@ -77,7 +81,11 @@ class VM {
 	 * 创建新的执行上下文，从 entryPc 开始，携带捕获变量和参数。
 	 * 当底层帧的 PopFrame 触发（tracebackPc 未设置）时返回结果。
 	 */
-	public async executeClosure(entryPc: number, caps: unknown[], args: unknown[]): Promise<unknown> {
+	public async executeClosure(
+		entryPc: number,
+		caps: unknown[],
+		args: unknown[],
+	): Promise<unknown> {
 		this.reader.jump(entryPc);
 		const closureFrame = new Frame(undefined, args, caps);
 		this.context.pushFrame(closureFrame);

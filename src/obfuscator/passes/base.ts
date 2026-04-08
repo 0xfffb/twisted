@@ -20,7 +20,11 @@ export abstract class BaseIrPass implements IrPass {
 	protected bumpDynAddr(ir: Instruction[], fromIndex: number, delta: number): void {
 		for (const ins of ir) {
 			for (const arg of ins.args) {
-				if (arg.kind === ArgKind.DynAddr && typeof arg.value === "number" && arg.value >= fromIndex) {
+				if (
+					arg.kind === ArgKind.DynAddr &&
+					typeof arg.value === "number" &&
+					arg.value >= fromIndex
+				) {
 					arg.value += delta;
 				}
 			}

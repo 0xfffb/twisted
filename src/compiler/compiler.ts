@@ -145,10 +145,14 @@ class Compiler {
 				throw new Error(`Unsupported param type: ${param.type}`);
 			}
 			this.context.scope.declare(param.name);
-			this.pushIr(createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, index)]));
-			this.pushIr(createInstruction(Opcode.Store, [
-				createArg(ArgKind.Variable, this.context.scope.resolve(param.name)),
-			]));
+			this.pushIr(
+				createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, index)]),
+			);
+			this.pushIr(
+				createInstruction(Opcode.Store, [
+					createArg(ArgKind.Variable, this.context.scope.resolve(param.name)),
+				]),
+			);
 		});
 		this.compileBlockStatement(body as BlockStatement);
 		// 函数体末尾没有 return 时提供默认出口
@@ -180,7 +184,7 @@ class Compiler {
 	private compileFunctionExpression(node: FunctionExpression) {
 		const body = node.body as BlockStatement;
 		const L_START = this.bulldozer.label(undefined, LabelType.FUNCTION_START);
-		const L_END   = this.bulldozer.label(undefined, LabelType.FUNCTION_END);
+		const L_END = this.bulldozer.label(undefined, LabelType.FUNCTION_END);
 
 		this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, L_END.id)]));
 		this.bulldozer.record(L_START.id, this.ir.length);
@@ -195,10 +199,14 @@ class Compiler {
 				throw new Error(`Unsupported param type: ${param.type}`);
 			}
 			this.context.scope.declare(param.name);
-			this.pushIr(createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, index)]));
-			this.pushIr(createInstruction(Opcode.Store, [
-				createArg(ArgKind.Variable, this.context.scope.resolve(param.name)),
-			]));
+			this.pushIr(
+				createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, index)]),
+			);
+			this.pushIr(
+				createInstruction(Opcode.Store, [
+					createArg(ArgKind.Variable, this.context.scope.resolve(param.name)),
+				]),
+			);
 		});
 
 		this.compileBlockStatement(body);
@@ -213,11 +221,13 @@ class Compiler {
 		this.bulldozer.record(L_END.id, this.ir.length);
 
 		// MakeClosure: entryPc + numCaptures + 各槽位
-		this.pushIr(createInstruction(Opcode.MakeClosure, [
-			createArg(ArgKind.DynAddr,  L_START.id),
-			createArg(ArgKind.Number,   capturedSlots.length),
-			...capturedSlots.map((slot) => createArg(ArgKind.Variable, slot)),
-		]));
+		this.pushIr(
+			createInstruction(Opcode.MakeClosure, [
+				createArg(ArgKind.DynAddr, L_START.id),
+				createArg(ArgKind.Number, capturedSlots.length),
+				...capturedSlots.map((slot) => createArg(ArgKind.Variable, slot)),
+			]),
+		);
 		console.log("🔧 Compiling FunctionExpression, captures: %s", capturedSlots);
 	}
 
@@ -403,9 +413,15 @@ class Compiler {
 				return captures.length - 1;
 			});
 			if (binding.kind === "local") {
-				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, binding.slot)]));
+				this.pushIr(
+					createInstruction(Opcode.Load, [createArg(ArgKind.Variable, binding.slot)]),
+				);
 			} else {
-				this.pushIr(createInstruction(Opcode.LoadCapture, [createArg(ArgKind.Number, binding.index)]));
+				this.pushIr(
+					createInstruction(Opcode.LoadCapture, [
+						createArg(ArgKind.Number, binding.index),
+					]),
+				);
 			}
 		} else {
 			const index = this.context.scope.resolve(node.name);
@@ -493,11 +509,15 @@ class Compiler {
 
 			if (objectProperty.key.type === "Identifier") {
 				this.pushIr(
-					createInstruction(Opcode.Push, [createArg(ArgKind.String, objectProperty.key.name)]),
+					createInstruction(Opcode.Push, [
+						createArg(ArgKind.String, objectProperty.key.name),
+					]),
 				);
 			} else if (objectProperty.key.type === "StringLiteral") {
 				this.pushIr(
-					createInstruction(Opcode.Push, [createArg(ArgKind.String, objectProperty.key.value)]),
+					createInstruction(Opcode.Push, [
+						createArg(ArgKind.String, objectProperty.key.value),
+					]),
 				);
 			} else {
 				throw new Error(`Unsupported object key type: ${objectProperty.key.type}`);
@@ -578,49 +598,71 @@ class Compiler {
 					case "=":
 						this.compileExpression(node.right as Expression);
 						this.pushIr(
-							createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Store, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						this.pushIr(
-							createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Load, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						break;
 					case "+=":
 						this.pushIr(
-							createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Load, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						this.compileExpression(node.right as Expression);
 						this.pushIr(createInstruction(Opcode.Add));
 						this.pushIr(
-							createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Store, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						this.pushIr(
-							createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Load, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						break;
 					case "-=":
 						this.pushIr(
-							createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Load, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						this.compileExpression(node.right as Expression);
 						this.pushIr(createInstruction(Opcode.Sub));
 						this.pushIr(
-							createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Store, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						this.pushIr(
-							createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Load, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						break;
 					case "^=":
 						this.pushIr(
-							createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Load, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						this.compileExpression(node.right as Expression);
 						this.pushIr(createInstruction(Opcode.BitXor));
 						this.pushIr(
-							createInstruction(Opcode.Store, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Store, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						this.pushIr(
-							createInstruction(Opcode.Load, [createArg(ArgKind.Variable, variableIndex)]),
+							createInstruction(Opcode.Load, [
+								createArg(ArgKind.Variable, variableIndex),
+							]),
 						);
 						break;
 					default:
@@ -630,7 +672,9 @@ class Compiler {
 			}
 			case "MemberExpression": {
 				if (node.operator !== "=") {
-					throw new Error(`Unsupported assignment operator for member target: ${node.operator}`);
+					throw new Error(
+						`Unsupported assignment operator for member target: ${node.operator}`,
+					);
 				}
 
 				const memberNode = node.left as MemberExpression;
@@ -695,7 +739,9 @@ class Compiler {
 
 	private compileUnaryExpression(node: UnaryExpression) {
 		if (node.operator === "-" && node.argument.type === "NumericLiteral") {
-			this.pushIr(createInstruction(Opcode.Push, [createArg(ArgKind.Number, -node.argument.value)]));
+			this.pushIr(
+				createInstruction(Opcode.Push, [createArg(ArgKind.Number, -node.argument.value)]),
+			);
 			return;
 		}
 		if (node.operator === "!") {
@@ -755,7 +801,9 @@ class Compiler {
 			}
 			this.compileExpression(el as Expression);
 		}
-		this.pushIr(createInstruction(Opcode.BuildArray, [createArg(ArgKind.Number, elements.length)]));
+		this.pushIr(
+			createInstruction(Opcode.BuildArray, [createArg(ArgKind.Number, elements.length)]),
+		);
 	}
 
 	private buildArrayVariable(args: ArrayExpression["elements"]) {
@@ -827,7 +875,7 @@ class Compiler {
 	private compileTryStatement(node: TryStatement) {
 		const block = node.block;
 		const handler = node.handler;
-		
+
 		const L_TRY_START = this.bulldozer.label(undefined, LabelType.TRY_START);
 		const L_TRY_END = this.bulldozer.label(undefined, LabelType.TRY_END);
 		const L_CATCH_START = this.bulldozer.label(undefined, LabelType.CATCH_START);
@@ -848,9 +896,11 @@ class Compiler {
 		if (node.param && node.param.type === "Identifier") {
 			this.context.scope.declare(node.param.name);
 			// 约定：VM 跳入 catch 时，异常值在栈顶
-			this.pushIr(createInstruction(Opcode.Store, [
-				createArg(ArgKind.Variable, this.context.scope.resolve(node.param.name)),
-			]));
+			this.pushIr(
+				createInstruction(Opcode.Store, [
+					createArg(ArgKind.Variable, this.context.scope.resolve(node.param.name)),
+				]),
+			);
 		}
 		this.compileBlockStatement(node.body as BlockStatement);
 		this.context.exit();

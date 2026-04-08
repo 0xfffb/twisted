@@ -1,29 +1,38 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import Compiler from "../compiler/compiler.js";
 import Assembler from "../assembler/assembler.js";
+import { dirname } from "node:path";
+import Obfuscator from "../obfuscator/obfuscator.js";
+import { ArithmeticDeformationPass } from "../obfuscator/passes/arithmetic.js";
 
 interface Bundle {
 	bytecode: number[];
 	meta: string[];
 }
+interface BundleBuildOptions {
+	obfuscate?: boolean;
+}
 
-async function main() {
-	const inputPath = process.argv[2] ?? "files/fingerprint.js";
-	const outputPath = process.argv[3] ?? "dist/runtime/bundle.json";
-
+async function buildBundle(
+	inputPath: string,
+	outputPath: string,
+	options: BundleBuildOptions = {},
+): Promise<Bundle> {
 	const source = await readFile(inputPath, "utf-8");
 	const compiler = new Compiler(source);
-	const ir = compiler.compile();
+	let ir = compiler.compile();
+	if (options.obfuscate) {
+		const obfuscator = new Obfuscator([new ArithmeticDeformationPass()]);
+		ir = obfuscator.obfuscate(ir);
+	}
 	const assembler = new Assembler();
 	const bundle = assembler.assemble(ir) as Bundle;
 
-	const outputDir = outputPath.split("/").slice(0, -1).join("/");
-	if (outputDir.length > 0) {
-		await mkdir(outputDir, { recursive: true });
-	}
+	await mkdir(dirname(outputPath), { recursive: true });
 
 	await writeFile(outputPath, JSON.stringify(bundle), "utf-8");
 	console.log(`Compiled bundle written to: ${outputPath}`);
+	return bundle;
 }
 
-void main();
+export { buildBundle };
