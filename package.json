@@ -2,8 +2,8 @@
   "name": "compiler",
   "version": "1.0.0",
   "description": "",
-  "license": "ISC",
-  "author": "",
+  "license": "GPL-3.0",
+  "author": "0xfffb",
   "type": "module",
   "main": "dist/cli.js",
   "bin": {
