@@ -1,0 +1,4 @@
+{
+	"buildCommand": "npm run build:all:plain && cp dist/browser/runtime.js public/runtime.js",
+	"outputDirectory": "public"
+}
