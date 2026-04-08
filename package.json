@@ -19,8 +19,8 @@
     "build": "npm run build:ts",
     "build:bundle": "npm run cli -- build files/fingerprint.js dist/browser/bundle.json",
     "build:runtime": "npm run cli -- runtime dist/browser/bundle.json dist/browser/runtime.js",
-    "build:all": "npm run cli -- all files/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js --obfuscate",
-    "build:all:plain": "npm run cli -- all files/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js",
+    "build:all": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js --obfuscate",
+    "build:all:plain": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js",
     "format": "prettier --write \"src/**/*.{js,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\""
   },
