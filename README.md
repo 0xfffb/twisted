@@ -1,5 +1,7 @@
 # Twisted
 
+简体中文 | [English](docs/README.en.md)
+
 面向**浏览器与 Node** 的实验性 **JavaScript → 自定义字节码** 工具链：将子集 JS 编译为栈式虚拟机字节码，可选 IR 混淆与浏览器端打包。适合学习编译器/虚拟机、研究前端脚本保护与对抗成本，**不提供商业级加固承诺**。
 
 ---
@@ -200,6 +202,7 @@ dist/              # 构建输出（gitignore）
 
 | 文档 | 内容 |
 |------|------|
+| [docs/README.en.md](docs/README.en.md) | 本说明的英文版（English translation） |
 | [docs/ir.md](docs/ir.md) | IR / Opcode 约定 |
 | [dev/workflow.md](dev/workflow.md) | 构建与运行流程说明 |
 
