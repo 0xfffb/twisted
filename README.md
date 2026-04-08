@@ -1,102 +1,167 @@
 # Twisted
 
-前端加固的本质不是“保护代码”，而是提高攻击者的自动化成本，从而削弱其规模化能力，配合后端与策略系统，共同将攻击ROI压到1以下
-风控系统最终目标是提高roi 使攻击者roi < 1
-前端加固核心是摧毁攻击者工程化、规模化能力
-Twisted 是一个面向浏览器运行时保护实验的 JavaScript VM 项目。  
-当前主线是把输入脚本编译为 `bytecode + meta`，再将 VM 与产物打包为浏览器可执行的单文件 runtime。
+面向**浏览器与 Node** 的实验性 **JavaScript → 自定义字节码** 工具链：将子集 JS 编译为栈式虚拟机字节码，可选 IR 混淆与浏览器端打包。适合学习编译器/虚拟机、研究前端脚本保护与对抗成本，**不提供商业级加固承诺**。
 
-## 当前能力（以仓库代码为准）
+---
 
-- `Compiler`：Babel AST -> 线性 `Instruction[]`
-- `Assembler`：`Instruction[]` -> `{ bytecode: number[], meta: string[] }`
-- `VM`：解释执行 bytecode（支持依赖注入、属性读写、函数调用、构造调用等）
-- `Builder`：
-  - `src/builder/compiler.ts` 生成 `dist/runtime/bundle.json`
-  - `src/builder/runtime.ts` 读取 bundle 并打包 `dist/browser/runtime(.esm).js`
-  - runtime 构建阶段支持 `esbuild + javascript-obfuscator`
+## 特性
 
-## 目录结构（核心）
+| 模块 | 说明 |
+|------|------|
+| **Compiler** | Babel 解析 AST → 线性 `Instruction[]`（IR） |
+| **Assembler** | IR → `{ bytecode: number[], meta: string[] }` |
+| **VM** | 解释执行 bytecode（依赖注入、`async`/`await`、闭包、调用约定等） |
+| **Obfuscator** | IR 级混淆 Pass 可串联 |
+| **Builder** | esbuild 打包浏览器 runtime，可选 `javascript-obfuscator` |
+| **CLI** | `build` / `runtime` / `all` 一条命令走完流水线 |
 
-```text
-src/
-  assembler/            # IR -> bytecode/meta
-  builder/              # build pipeline (compiler/runtime)
-  compiler/             # JS -> IR
-  vm/                   # bytecode VM
-  constant.ts           # opcode 定义
-  instruction.ts        # IR 指令结构
-files/
-  runtime_input.js      # runtime 编译输入
-dist/
-  runtime/              # bundle.json
-  browser/              # runtime.js / runtime.esm.js
-docs/
-  ir.md
-  workflow.md
-```
+---
 
-## 快速开始
+## 环境要求
 
-### 1) 安装
+- **Node.js** ≥ 18（使用 `node:test`、原生 `fetch` 等）
+
+---
+
+## 安装
 
 ```bash
+git clone <repository-url>
+cd twisted
 npm install
 ```
 
-### 2) 构建 TypeScript
+---
+
+## 快速开始
+
+### 类型检查
 
 ```bash
-npm run build
+npm run typecheck
 ```
 
-### 3) 端到端构建 runtime
+### 运行测试
 
 ```bash
-npm run build:runtime:all
+npm test
 ```
 
-该命令会依次执行：
+### 一键生成浏览器产物（示例）
 
-1. `build:bundle`：将 `files/runtime_input.js` 编译为 `dist/runtime/bundle.json`
-2. `build:runtime`：将 VM + bundle 打包为浏览器脚本
-
-输出文件：
-
-- `dist/runtime/bundle.json`
-- `dist/browser/runtime.js`
-- `dist/browser/runtime.esm.js`
-
-## 浏览器侧执行
-
-可直接在测试页中加载 `dist/browser/runtime.js`，调用：
-
-```js
-TwistedRuntime.run([window, console]);
+```bash
+npm run build:all
 ```
 
-依赖数组顺序需要和编译器依赖表一致（当前默认是 `window`, `console`）。
+默认使用 `example/fingerprint.js` → 输出 `dist/browser/bundle.json` 与 `dist/browser/runtime.js`（含混淆）。  
+不需要外层混淆时：
 
-## 当前语法支持（简表）
+```bash
+npm run build:all:plain
+```
 
-- 语句：`ExpressionStatement`, `VariableDeclaration`, `IfStatement`, `BlockStatement`, `FunctionDeclaration`, `ReturnStatement`, `TryStatement`
-- 表达式：`CallExpression`, `NewExpression`, `AwaitExpression`, `BinaryExpression`, `Identifier`, `MemberExpression`, `NumericLiteral`, `StringLiteral`, `BooleanLiteral`, `ObjectExpression`, `AssignmentExpression`
+### 开发时直接跑调试入口
 
-> 提示：项目处于迭代阶段，复杂 JS 语法不保证全部支持。遇到编译错误请以 `Unsupported ...` 报错为准，按需补 AST 节点。
+```bash
+npm run debugger
+```
 
-## 构建脚本
+---
 
-- `npm run start`：运行调试入口
-- `npm run build`：TypeScript 构建
-- `npm run build:bundle`：生成 `bundle.json`
-- `npm run build:runtime`：构建浏览器 runtime
-- `npm run build:runtime:all`：完整流水线
+## CLI（`npm run cli -- …`）
 
-## 相关文档
+安装并 `npm run build` 生成 `dist/` 后，可使用包内 CLI（见 `package.json` 的 `bin`）：
 
-- `docs/ir.md`：当前 IR / opcode 说明
-- `docs/workflow.md`：当前构建与运行流程
+```text
+twisted build   <input.js> <bundle.json> [--obfuscate]
+twisted runtime <bundle.json> <runtime.js> [--obfuscate]
+twisted all     <input.js> <bundle.json> <runtime.js> [--obfuscate]
+twisted help
+twisted version
+```
+
+开发阶段等价于：
+
+```bash
+npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js --obfuscate
+```
+
+---
+
+## npm scripts
+
+| 脚本 | 作用 |
+|------|------|
+| `npm test` | Node 内置测试（`tests/*.test.ts`） |
+| `npm run test:watch` | 监听模式跑测试 |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run build` / `npm run build:ts` | 编译 TypeScript → `dist/` |
+| `npm run build:bundle` | 仅编译输入 → `bundle.json` |
+| `npm run build:runtime` | 由 bundle 生成浏览器 `runtime.js` |
+| `npm run build:all` | bundle + runtime（默认混淆） |
+| `npm run build:all:plain` | 同上，不启用 builder 侧混淆选项 |
+| `npm run format` | Prettier 格式化 `src/` |
+
+---
+
+## 仓库结构（核心）
+
+```text
+src/
+  assembler/       # IR → bytecode / meta
+  builder/         # bundle 与浏览器 runtime 构建
+  cli.ts           # 命令行入口
+  compiler/        # JS → IR
+  obfuscator/      # IR 混淆 Pass
+  vm/              # 字节码解释器
+  constant.ts      # Opcode 等
+  instruction.ts   # IR 定义
+example/           # 示例输入（如 fingerprint）
+tests/             # compiler / vm / obfuscator 单测
+docs/              # IR 说明等
+dev/               # 开发笔记、流程与防护分级（非 API 文档）
+dist/              # 构建输出（gitignore）
+```
+
+---
+
+## 语法支持
+
+支持的语句与表达式以编译器实现为准；完整列表见 **`docs/ir.md`**。未实现的节点会抛出 `Unsupported ...`，可按需扩展。
+
+---
+
+## 浏览器中运行
+
+构建得到的 `runtime.js` 为 **IIFE**，加载后会在页面上下文执行 VM（默认依赖 `[window, console]`，与编译期依赖表一致）。**不包含** `TwistedRuntime.run` 这类全局 API——与旧文档描述不一致处以当前构建产物为准。
+
+---
+
+## 文档
+
+| 文档 | 内容 |
+|------|------|
+| [docs/ir.md](docs/ir.md) | IR / Opcode 约定 |
+| [dev/workflow.md](dev/workflow.md) | 构建与运行流程说明 |
+
+---
+
+## 参与贡献
+
+Issues / PR 欢迎。建议：
+
+1. 新功能或修复请附带或更新 **`npm test`** 能通过的单测。  
+2. 提交信息清晰说明动机与行为变更（中文或英文均可）。  
+3. 大改动请先开 issue 简述方案，避免与维护方向冲突。
+
+---
+
+## 安全与合规
+
+本项目用于**安全研究与教育**。请勿用于未授权入侵、绕过他人服务条款或违法用途；使用者自行承担合规责任。
+
+---
 
 ## License
 
-ISC
+**ISC** — 见 `package.json` 中 `license` 字段。开源发布建议在仓库根目录增加 `LICENSE` 文本文件以便自动识别。
