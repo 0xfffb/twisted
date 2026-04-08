@@ -184,7 +184,7 @@ dist/              # 构建输出（gitignore）
 | 依赖注入表 | ✅ | 默认 `window`、`console`（`Compiler` 内 `dependencies`） |
 | `async` 函数与 `await`（编译目标） | ✅ | 与 `Await` 等配合 |
 | 浏览器 `runtime.js` 打包 | ✅ | 见 `npm run build:runtime` / `build:all` |
-| IR 混淆 Pass | ✅ | 如 `ArithmeticDeformationPass`、`DeadCodePass` 等，可串联 |
+| IR 混淆 Pass | ✅ | 如 `ArithmeticDeformationPass`，可串联，完成grhpa后再完善 |
 
 **图例：** ✅ 已支持　⚠️ 部分支持 / 有约束　❌ 未实现  
 
@@ -204,7 +204,6 @@ dist/              # 构建输出（gitignore）
 |------|------|
 | [docs/README.en.md](docs/README.en.md) | 本说明的英文版（English translation） |
 | [docs/ir.md](docs/ir.md) | IR / Opcode 约定 |
-| [dev/workflow.md](dev/workflow.md) | 构建与运行流程说明 |
 
 ---
 
