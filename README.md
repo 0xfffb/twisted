@@ -165,30 +165,7 @@ dist/              # 构建输出（gitignore）
 | `ArrayExpression` | ⚠️ | 不支持稀疏数组（如 `[,]`） |
 | `ObjectExpression` | ⚠️ | 仅支持 `ObjectProperty`，不支持 `computed key`、对象方法简写等 |
 
-### TODO（未完成 / 有约束）
-
-#### IR
-- [ ] LLVM风格IR
-- [ ] CFG
-- [ ] SSA
-- [ ] Lowering
-- [ ] Pass 修改
-
-#### 语法
-- [ ] `WhileStatement` / `DoWhileStatement`
-- [ ] `SwitchStatement`
-- [ ] `BreakStatement` / `ContinueStatement`
-- [ ] `ThrowStatement`
-- [ ] `EmptyStatement`
-- [ ] `LabeledStatement`
-- [ ] `ClassDeclaration` / `ClassExpression`
-- [ ] `TemplateLiteral`
-- [ ] `LogicalExpression`（`&&` `||` `??`）
-- [ ] `ConditionalExpression`（`?:`）
-- [ ] `SequenceExpression`（`,`）
-- [ ] `ThisExpression`
-- [ ] `MetaProperty` / `ImportExpression` / `Super`
-- [ ] `ImportDeclaration` / `ExportDeclaration`
+---
 
 ### 运行时与构建相关
 
@@ -220,8 +197,32 @@ dist/              # 构建输出（gitignore）
 
 ---
 
-## TODO
+### TODO
 
+#### IR
+- [ ] LLVM风格IR
+- [ ] CFG
+- [ ] SSA
+- [ ] Lowering
+- [ ] Pass 修改
+
+#### 语法
+- [ ] `WhileStatement` / `DoWhileStatement`
+- [ ] `SwitchStatement`
+- [ ] `BreakStatement` / `ContinueStatement`
+- [ ] `ThrowStatement`
+- [ ] `EmptyStatement`
+- [ ] `LabeledStatement`
+- [ ] `ClassDeclaration` / `ClassExpression`
+- [ ] `TemplateLiteral`
+- [ ] `LogicalExpression`（`&&` `||` `??`）
+- [ ] `ConditionalExpression`（`?:`）
+- [ ] `SequenceExpression`（`,`）
+- [ ] `ThisExpression`
+- [ ] `MetaProperty` / `ImportExpression` / `Super`
+- [ ] `ImportDeclaration` / `ExportDeclaration`
+
+---
 
 ## 参与贡献
 
