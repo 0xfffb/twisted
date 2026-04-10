@@ -127,55 +127,68 @@ dist/              # 构建输出（gitignore）
 
 ---
 
-## JS 语法与功能对照
+## 语法支持
 
-以下为 **Compiler**（`src/compiler/compiler.ts`）当前实现与 **VM**（`src/vm/vm.ts`）执行能力对照，按「是否已接入」标记。未列出或标记为未完成的语法会 **`throw new Error('Unsupported …')`** 或无法通过编译。细节以源码为准。
+以下根据当前 `src/compiler/compiler.ts` 实际分支整理，分为「已支持」与「TODO（未完成 / 有约束）」两部分。
 
-### 语句（Statement）
+### 已支持
 
-| 语法 | 状态 | 说明 |
-|------|:----:|------|
-| `ExpressionStatement` | ✅ | 表达式语句 |
-| `VariableDeclaration`（`let` / `const`） | ⚠️ | 每个声明**必须有初值**；绑定仅限 **`Identifier`**，无解构 / 无 `var` 单独路径 |
-| `IfStatement` | ✅ | 含 `else` 与不含 `else` |
-| `ForStatement` | ✅ | 经典三段式 `for (init; test; update) body`；`init` 可为变量声明或表达式 |
-| `BlockStatement` | ✅ | |
-| `FunctionDeclaration` | ⚠️ | 形参仅限 **`Identifier`**，不支持 `RestElement` / 默认参数 / 解构 |
-| `ReturnStatement` | ⚠️ | **必须**带表达式，不支持空 `return;` |
-| `TryStatement` | ⚠️ | 需带 **`catch`**；**无 `finally`**；异常进入 `catch` 依赖 VM 与运行时约定 |
-| `DebuggerStatement` | ✅ | 生成 `Debugger` 指令 |
-| `WhileStatement` / `DoWhileStatement` | ❌ | |
-| `SwitchStatement` | ❌ | |
-| `BreakStatement` / `ContinueStatement` | ❌ | |
-| `ThrowStatement` | ❌ | |
-| `EmptyStatement` | ❌ | |
-| `LabeledStatement` | ❌ | |
-| `ClassDeclaration` / `ClassExpression` | ❌ | |
-| `ImportDeclaration` / `ExportDeclaration` | ❌ | 源码按 `module` 解析，但未编译模块语法 |
+#### Statement
 
-### 表达式（Expression）
+| 语法 | 状态 | 未完全支持原因 |
+|------|:----:|----------------|
+| `ExpressionStatement` | ✅ | - |
+| `VariableDeclaration` | ⚠️ | 声明必须有初值；仅支持 `Identifier` 绑定（不支持解构） |
+| `IfStatement` | ✅ | - |
+| `ForStatement` | ✅ | - |
+| `BlockStatement` | ✅ | - |
+| `FunctionDeclaration` | ⚠️ | 形参仅支持 `Identifier`（不支持默认值、解构、`RestElement`） |
+| `ReturnStatement` | ⚠️ | 当前必须带返回值，不支持空 `return;` |
+| `TryStatement` | ⚠️ | 仅支持 `try + catch`，不支持 `finally` |
+| `DebuggerStatement` | ✅ | - |
 
-| 语法 | 状态 | 说明 |
-|------|:----:|------|
-| `Identifier` | ✅ | 含闭包捕获路径下的 `Load` / `LoadCapture` |
-| 字面量 `NumericLiteral` / `StringLiteral` / `BooleanLiteral` / `NullLiteral` | ✅ | 布尔在 IR 中用 `0`/`1` 表示 |
-| `CallExpression` | ⚠️ | `callee` 支持 `Identifier`（含函数声明名 / 闭包）、`MemberExpression`、`CallExpression`（部分链式） |
-| `MemberExpression` | ⚠️ | `obj.prop` 时 `property` 仅 **`Identifier`**；`obj[key]`（`computed`）走 `GetElement`；`object` 侧类型受限（如字面量、`this` 等会报错），见 `compileMemberExpression` |
-| `NewExpression` | ⚠️ | `Construct`，`callee` 类型受限 |
-| `AwaitExpression` | ✅ | 生成 `Await`，需异步执行环境 |
-| `BinaryExpression` | ⚠️ | 支持 `+ - * /`、`==` `===`、`| ^`、移位 `<<` `>>>`（**无**有符号 `>>`）、比较 `< > <= >=`；**不支持** `&&` `||`（其为 `LogicalExpression`）、`%`、`**`、`&` 等 |
-| `UnaryExpression` | ⚠️ | 支持 `!`；负数字面量折叠（如 `-1`）；**一般一元** `+`、`typeof` 等未支持 |
-| `AssignmentExpression` | ⚠️ | 左侧为 `Identifier`：`=`、`+=`、`-=`、`^=`；左侧为 `MemberExpression`：**仅 `=`** |
-| `UpdateExpression` | ⚠️ | 仅 `Identifier` 上的 `++` / `--` |
-| `FunctionExpression` | ✅ | 闭包、`MakeClosure` |
-| `ArrayExpression` | ⚠️ | **不支持**稀疏数组（`[,]`） |
-| `ObjectExpression` | ⚠️ | 仅 `ObjectProperty`；**不支持**计算属性名、对象方法简写等扩展 |
-| `TemplateLiteral` | ❌ | |
-| `LogicalExpression`（`&&` `||` `??`） | ❌ | |
-| `ConditionalExpression`（`?:`） | ❌ | |
-| `SequenceExpression`（`,`） | ❌ | |
-| `ThisExpression` | ❌ | |
-| `MetaProperty` / `ImportExpression` / `Super` | ❌ | |
+#### Expression
+
+| 语法 | 状态 | 未完全支持原因 |
+|------|:----:|----------------|
+| `Identifier` | ✅ | - |
+| `NumericLiteral` / `StringLiteral` / `BooleanLiteral` / `NullLiteral` | ✅ | - |
+| `CallExpression` | ⚠️ | `callee` 仅支持 `Identifier` / `MemberExpression` / `CallExpression` |
+| `MemberExpression` | ⚠️ | `object` 侧类型受限；非 `computed` 分支仅支持 `Identifier` 属性名 |
+| `NewExpression` | ⚠️ | 构造器 `callee` 类型受限（不支持全部表达式） |
+| `AwaitExpression` | ✅ | - |
+| `BinaryExpression` | ⚠️ | 仅支持 `+ - * / == === | ^ << >>> < > <= >=` |
+| `UnaryExpression` | ⚠️ | 仅支持 `!` 与负数字面量折叠 |
+| `AssignmentExpression` | ⚠️ | `Identifier` 仅 `= += -= ^=`；`MemberExpression` 仅 `=` |
+| `UpdateExpression` | ⚠️ | 仅支持 `Identifier` 上 `++/--` |
+| `FunctionExpression` | ⚠️ | 形参与声明函数一致，仅支持 `Identifier` 参数 |
+| `ArrayExpression` | ⚠️ | 不支持稀疏数组（如 `[,]`） |
+| `ObjectExpression` | ⚠️ | 仅支持 `ObjectProperty`，不支持 `computed key`、对象方法简写等 |
+
+### TODO（未完成 / 有约束）
+
+#### IR
+- [ ] LLVM风格IR
+- [ ] CFG
+- [ ] SSA
+- [ ] Lowering
+- [ ] Pass 修改
+
+#### 语法
+- [ ] `WhileStatement` / `DoWhileStatement`
+- [ ] `SwitchStatement`
+- [ ] `BreakStatement` / `ContinueStatement`
+- [ ] `ThrowStatement`
+- [ ] `EmptyStatement`
+- [ ] `LabeledStatement`
+- [ ] `ClassDeclaration` / `ClassExpression`
+- [ ] `TemplateLiteral`
+- [ ] `LogicalExpression`（`&&` `||` `??`）
+- [ ] `ConditionalExpression`（`?:`）
+- [ ] `SequenceExpression`（`,`）
+- [ ] `ThisExpression`
+- [ ] `MetaProperty` / `ImportExpression` / `Super`
+- [ ] `ImportDeclaration` / `ExportDeclaration`
 
 ### 运行时与构建相关
 
@@ -206,6 +219,9 @@ dist/              # 构建输出（gitignore）
 | [docs/ir.md](docs/ir.md) | IR / Opcode 约定 |
 
 ---
+
+## TODO
+
 
 ## 参与贡献
 
