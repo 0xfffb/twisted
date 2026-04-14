@@ -1,11 +1,13 @@
 import type { Value } from "../value.js";
 import { Instruction } from "./instruction.js";
 
+export type BinaryInstructionKind = "Add" | "Sub" | "Mul" | "Div" | "Equal";
+
 export class BinaryInstruction extends Instruction {
-	readonly kind: "Add" | "Sub" | "Mul" | "Div" | "Equal";
+	readonly kind: BinaryInstructionKind;
 	constructor(
 		id: number,
-		kind: BinaryInstruction["kind"],
+		kind: BinaryInstructionKind,
 		public readonly lhs: Value,
 		public readonly rhs: Value,
 	) {
