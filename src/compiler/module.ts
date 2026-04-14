@@ -1,10 +1,10 @@
 import type { GlobalValue } from "./value/constant/global/index.js";
-import { GlobalVariable, IrFunction } from "./value/constant/global/index.js";
+import { GlobalVariable, IRFunction } from "./value/constant/global/index.js";
 import { Value } from "./value/value.js";
 
-class Module {
+class IRModule {
 	readonly name: string;
-	readonly functions: IrFunction[];
+	readonly functions: IRFunction[];
 	readonly globals: GlobalVariable[];
 
 	constructor(name: string) {
@@ -13,7 +13,7 @@ class Module {
 		this.globals = [];
 	}
 
-	addFunction(fn: IrFunction): void {
+	addFunction(fn: IRFunction): void {
 		this.functions.push(fn);
 	}
 
@@ -21,7 +21,7 @@ class Module {
 		this.globals.push(new GlobalVariable(name, value));
 	}
 
-	getFunction(name: string): IrFunction | undefined {
+	getFunction(name: string): IRFunction | undefined {
 		return this.functions.find((fn) => fn.name === name);
 	}
 
@@ -39,6 +39,4 @@ class Module {
 	}
 }
 
-export type { GlobalValue } from "./value/constant/global/index.js";
-export { GlobalVariable, IrFunction, Module };
-export type { GlobalValue as Global };
+export { IRModule };

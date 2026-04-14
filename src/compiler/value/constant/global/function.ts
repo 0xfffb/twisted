@@ -2,7 +2,7 @@ import { GlobalValue } from "./value.js";
 import { BasicBlock } from "../../block.js";
 import { ArgValue } from "../../argument.js";
 
-class IrFunction extends GlobalValue {
+class IRFunction extends GlobalValue {
 	readonly kind = "Function" as const;
 	readonly params: ArgValue[];
 	readonly blocks: BasicBlock[];
@@ -59,4 +59,4 @@ class IrFunction extends GlobalValue {
 	}
 }
 
-export { IrFunction };
+export { IRFunction };
