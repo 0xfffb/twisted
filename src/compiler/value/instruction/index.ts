@@ -1,13 +1,7 @@
-export { Instruction } from "./instruction.js";
-export { BinaryInstruction } from "./binary.js";
-export { LoadInstruction } from "./load.js";
-export { StoreInstruction } from "./store.js";
-export { CallInstruction } from "./call.js";
-export { PhiInstruction } from "./phi.js";
-export {
-	Terminator,
-	BranchTerminator,
-	JmpTerminator,
-	ReturnTerminator,
-	UnreachableTerminator,
-} from "./terminator/index.js";
+export * from "./instruction.js";
+export * from "./binary.js";
+export * from "./load.js";
+export * from "./store.js";
+export * from "./call.js";
+export * from "./phi.js";
+export * from "./terminator/index.js";

@@ -1,8 +1,8 @@
-import { Constant } from "./constant.js";
-import { BasicBlock } from "../block.js";
-import { ArgValue } from "../argument.js";
+import { GlobalValue } from "./value.js";
+import { BasicBlock } from "../../block.js";
+import { ArgValue } from "../../argument.js";
 
-class IrFunction extends Constant {
+class IrFunction extends GlobalValue {
 	readonly kind = "Function" as const;
 	readonly params: ArgValue[];
 	readonly blocks: BasicBlock[];
@@ -13,7 +13,7 @@ class IrFunction extends Constant {
 		public readonly name: string,
 		paramNames: string[],
 	) {
-		super();
+		super(name);
 		this.params = paramNames.map((n, i) => new ArgValue(i, n));
 		this.blocks = [];
 		this.createBlock("entry");

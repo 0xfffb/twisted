@@ -1,5 +1,5 @@
-export { Terminator } from "./terminator.js";
-export { BranchTerminator } from "./branch.js";
-export { JmpTerminator } from "./jmp.js";
-export { ReturnTerminator } from "./return.js";
-export { UnreachableTerminator } from "./unreachable.js";
+export * from "./terminator.js";
+export * from "./branch.js";
+export * from "./jmp.js";
+export * from "./return.js";
+export * from "./unreachable.js";

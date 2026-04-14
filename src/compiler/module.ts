@@ -1,11 +1,11 @@
-import { GlobalVariable } from "./value/constant/global.js";
-import { IrFunction } from "./value/constant/function.js";
+import type { GlobalValue } from "./value/constant/global/index.js";
+import { GlobalVariable, IrFunction } from "./value/constant/global/index.js";
 import { Value } from "./value/value.js";
 
 class Module {
 	readonly name: string;
-	readonly functions: Value[];
-	readonly globals: Value[];
+	readonly functions: IrFunction[];
+	readonly globals: GlobalVariable[];
 
 	constructor(name: string) {
 		this.name = name;
@@ -22,21 +22,23 @@ class Module {
 	}
 
 	getFunction(name: string): IrFunction | undefined {
-		return this.functions.find((fn) => fn.kind === "Function" && (fn as IrFunction).name === name) as IrFunction | undefined;
+		return this.functions.find((fn) => fn.name === name);
 	}
 
 	dump(): string {
 		const lines: string[] = [`; Module: ${this.name}`];
 		for (const g of this.globals) {
-			lines.push((g as GlobalVariable).dump());
+			lines.push(g.dump());
 		}
 		if (this.globals.length > 0) lines.push("");
 		for (const fn of this.functions) {
-			lines.push((fn as IrFunction).dump());
+			lines.push(fn.dump());
 			lines.push("");
 		}
 		return lines.join("\n");
 	}
 }
 
-export { GlobalVariable, Module };
+export type { GlobalValue } from "./value/constant/global/index.js";
+export { GlobalVariable, IrFunction, Module };
+export type { GlobalValue as Global };
