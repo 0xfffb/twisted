@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { LinearCompiler } from "../compiler/index.js";
-import Assembler from "../assembler/assembler.js";
+import { LinearAssembler } from "../assembler/index.js";
 import { dirname } from "node:path";
 import Obfuscator from "../obfuscator/obfuscator.js";
 import { ArithmeticDeformationPass } from "../obfuscator/passes/arithmetic.js";
@@ -25,7 +25,7 @@ async function buildBundle(
 		const obfuscator = new Obfuscator([new ArithmeticDeformationPass()]);
 		ir = obfuscator.obfuscate(ir);
 	}
-	const assembler = new Assembler();
+	const assembler = new LinearAssembler();
 	const bundle = assembler.assemble(ir) as Bundle;
 
 	await mkdir(dirname(outputPath), { recursive: true });

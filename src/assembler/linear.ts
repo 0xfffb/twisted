@@ -1,22 +1,20 @@
 import { ArgKind, type Instruction } from "../instruction.js";
 import { Opcode } from "../constant.js";
 import { Bulldozer } from "./bulldozer.js";
+import { BaseAssembler } from "./base.js";
 
 interface AssemblerBundle {
 	bytecode: number[];
 	meta: string[];
 }
 
-class Assembler {
-	private bytecode: number[];
-	private meta: string[];
-	private constPoolMap: Map<string, number>;
 
+class LinearAssembler extends BaseAssembler {
+	protected constPoolMap: Map<string, number>;
 	private bulldozer: Bulldozer;
 
 	constructor() {
-		this.bytecode = [];
-		this.meta = [];
+        super();
 		this.constPoolMap = new Map();
 		this.bulldozer = new Bulldozer();
 	}
@@ -33,7 +31,7 @@ class Assembler {
 		};
 	}
 
-	private push(instruction: Instruction) {
+	protected push(instruction: Instruction): void {
 		let opcode = instruction.opcode;
 		if (instruction.opcode === Opcode.Push && instruction.args.length === 1) {
 			const [arg] = instruction.args;
@@ -74,7 +72,7 @@ class Assembler {
 		});
 	}
 
-	private getMetaIndex(value: string): number {
+	protected getMetaIndex(value: string): number {
 		const index = this.constPoolMap.get(value);
 		if (index !== undefined) {
 			return index;
@@ -86,5 +84,4 @@ class Assembler {
 	}
 }
 
-export default Assembler;
-export { AssemblerBundle };
+export { LinearAssembler, type AssemblerBundle };
