@@ -16,9 +16,14 @@ import {
 	ObjectProp,
 	NewInstruction,
 	GlobalRefInstruction,
+	ThisInstruction,
 	ForInInitInstruction,
 	ForInHasInstruction,
 	ForInNextInstruction,
+	GetPropInstruction,
+	GetElemInstruction,
+	SetPropInstruction,
+	SetElemInstruction,
 	BranchTerminator,
 	JmpTerminator,
 	ReturnTerminator,
@@ -200,6 +205,41 @@ class IRBuilder {
 	buildGlobalRef(name: string): GlobalRefInstruction {
 		const { fn, block } = this.insertPoint();
 		const instr = new GlobalRefInstruction(fn.allocReg(), name);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildThis(): ThisInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new ThisInstruction(fn.allocReg());
+		block.emit(instr);
+		return instr;
+	}
+
+	buildGetProp(obj: Value, key: string): GetPropInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new GetPropInstruction(fn.allocReg(), obj, key);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildGetElem(obj: Value, key: Value): GetElemInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new GetElemInstruction(fn.allocReg(), obj, key);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildSetProp(obj: Value, key: string, value: Value): SetPropInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new SetPropInstruction(fn.allocReg(), obj, key, value);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildSetElem(obj: Value, key: Value, value: Value): SetElemInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new SetElemInstruction(fn.allocReg(), obj, key, value);
 		block.emit(instr);
 		return instr;
 	}

@@ -2,23 +2,15 @@ import { HyperionCompiler } from "./compiler/index.js";
 
 async function main() {
 	const code = `
-var i = 0;
-do {
-  i++;
-} while (i < 3);
+var obj = { x: 1, arr: [10, 20] };
+var a = obj.x;
+var b = obj.arr[0];
+obj.x = 99;
+obj.arr[1] = 30;
 
-var obj = { a: 1, b: 2 };
-for (var key in obj) {
-  var val = key;
+function Foo() {
+  this.val = 42;
 }
-
-switch (i) {
-  case 1: var r = "one"; break;
-  case 3: var r = "three"; break;
-  default: var r = "other";
-}
-
-throw new Error("done");
 	`;
 	const compiler = new HyperionCompiler(code);
 	const module = compiler.compile();

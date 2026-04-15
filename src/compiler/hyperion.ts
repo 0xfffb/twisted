@@ -9,6 +9,7 @@ import type {
 	UnaryExpression,
 	AssignmentExpression,
 	LogicalExpression,
+	MemberExpression,
 	NumericLiteral,
 	StringLiteral,
 	BooleanLiteral,
@@ -134,6 +135,8 @@ class HyperionCompiler extends BaseCompiler {
 				this.compileThrowStatement(node as ThrowStatement, scope);
 				break;
 			case "EmptyStatement":
+                break;
+			case "DebuggerStatement":
 				break;
 			default:
 				throw new Error(`HyperionCompiler: Unsupported statement type ${node.type}`);
@@ -553,6 +556,10 @@ class HyperionCompiler extends BaseCompiler {
 				return this.compileLogicalExpression(node as LogicalExpression, scope);
 			case "NewExpression":
 				return this.compileNewExpression(node as NewExpression, scope);
+			case "MemberExpression":
+				return this.compileMemberExpression(node as MemberExpression, scope);
+			case "ThisExpression":
+				return this.builder.buildThis();
 			default:
 				throw new Error(`HyperionCompiler: Unsupported expression type ${node.type}`);
 		}
@@ -597,20 +604,56 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileAssignmentExpression(node: AssignmentExpression, scope: SSAScope): Value {
-		if (node.left.type !== "Identifier") throw new Error("Only identifier assignment is supported");
-		const name = (node.left as Identifier).name;
-		const rhs  = this.compileExpression(node.right as Expression, scope);
-		let val: Value;
-		switch (node.operator) {
-			case "=":   val = rhs; break;
-			case "+=":  val = this.builder.buildAdd(scope.lookup(name), rhs); break;
-			case "-=":  val = this.builder.buildSub(scope.lookup(name), rhs); break;
-			case "*=":  val = this.builder.buildMul(scope.lookup(name), rhs); break;
-			case "/=":  val = this.builder.buildDiv(scope.lookup(name), rhs); break;
-			default: throw new Error(`Unsupported assignment operator: ${node.operator}`);
+		const rhs = this.compileExpression(node.right as Expression, scope);
+
+		if (node.left.type === "Identifier") {
+			const name = (node.left as Identifier).name;
+			let val: Value;
+			switch (node.operator) {
+				case "=":   val = rhs; break;
+				case "+=":  val = this.builder.buildAdd(scope.lookup(name), rhs); break;
+				case "-=":  val = this.builder.buildSub(scope.lookup(name), rhs); break;
+				case "*=":  val = this.builder.buildMul(scope.lookup(name), rhs); break;
+				case "/=":  val = this.builder.buildDiv(scope.lookup(name), rhs); break;
+				default: throw new Error(`Unsupported assignment operator: ${node.operator}`);
+			}
+			scope.define(name, val);
+			return val;
 		}
-		scope.define(name, val);
-		return val;
+
+		if (node.left.type === "MemberExpression") {
+			const mem = node.left as MemberExpression;
+			const obj = this.compileExpression(mem.object as Expression, scope);
+			const base = node.operator === "=" ? rhs : (() => {
+				const cur = mem.computed
+					? this.builder.buildGetElem(obj, this.compileExpression(mem.property as Expression, scope))
+					: this.builder.buildGetProp(obj, (mem.property as Identifier).name);
+				switch (node.operator) {
+					case "+=": return this.builder.buildAdd(cur, rhs);
+					case "-=": return this.builder.buildSub(cur, rhs);
+					case "*=": return this.builder.buildMul(cur, rhs);
+					case "/=": return this.builder.buildDiv(cur, rhs);
+					default: throw new Error(`Unsupported assignment operator: ${node.operator}`);
+				}
+			})();
+			if (mem.computed) {
+				this.builder.buildSetElem(obj, this.compileExpression(mem.property as Expression, scope), base);
+			} else {
+				this.builder.buildSetProp(obj, (mem.property as Identifier).name, base);
+			}
+			return base;
+		}
+
+		throw new Error(`Unsupported assignment left-hand side: ${node.left.type}`);
+	}
+
+	private compileMemberExpression(node: MemberExpression, scope: SSAScope): Value {
+		const obj = this.compileExpression(node.object as Expression, scope);
+		if (node.computed) {
+			const key = this.compileExpression(node.property as Expression, scope);
+			return this.builder.buildGetElem(obj, key);
+		}
+		return this.builder.buildGetProp(obj, (node.property as Identifier).name);
 	}
 
 	private compileLogicalExpression(node: LogicalExpression, scope: SSAScope): Value {
