@@ -78,7 +78,7 @@ class SSAScope {
 
 class HyperionCompiler extends BaseCompiler {
 	readonly builder: IRBuilder;
-	private anonCount = 0;
+	private functionNameCounters = new Map<string, number>();
 	private loopStack: LoopFrame[] = [];
 	private serializer: HyperionSerializer;
 
@@ -165,8 +165,9 @@ class HyperionCompiler extends BaseCompiler {
 
 	private compileFunctionDeclaration(node: FunctionDeclaration, scope: SSAScope): void {
 		if (!node.id) throw new Error("Anonymous function declarations are not supported");
+		const irName = this.allocFunctionName(node.id.name);
 		const fn = this.compileFunctionLike(
-			node.id.name,
+			irName,
 			node.params as Identifier[],
 			node.body,
 			scope,
@@ -175,8 +176,14 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileFunctionExpression(node: FunctionExpression, scope: SSAScope): Value {
-		const name = node.id?.name ?? `__anon_${this.anonCount++}`;
+		const name = this.allocFunctionName(node.id?.name ?? "__anon");
 		return this.compileFunctionLike(name, node.params as Identifier[], node.body, scope);
+	}
+
+	private allocFunctionName(base: string): string {
+		const count = this.functionNameCounters.get(base) ?? 0;
+		this.functionNameCounters.set(base, count + 1);
+		return count === 0 ? base : `${base}$${count}`;
 	}
 
 	private collectWrittenVars(nodes: any | any[]): Set<string> {

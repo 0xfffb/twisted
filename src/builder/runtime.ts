@@ -58,10 +58,8 @@ import VM from "./src/vm/vm.ts";
 const bytecode = ${bytecode};
 const meta = ${meta};
 
-(async () => {
-    const vm = new VM(bytecode, meta, [window, console]);
-    await vm.execute();
-})();
+const vm = new VM(bytecode, meta, [window, console]);
+vm.execute();
 `;
 }
 

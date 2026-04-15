@@ -13,7 +13,7 @@ interface BundleBuildOptions {
 	obfuscate?: boolean;
 }
 
-async function buildBundle(
+async function LinearBuildBundle(
 	inputPath: string,
 	outputPath: string,
 	options: BundleBuildOptions = {},
@@ -35,4 +35,4 @@ async function buildBundle(
 	return bundle;
 }
 
-export { buildBundle };
+export { LinearBuildBundle };

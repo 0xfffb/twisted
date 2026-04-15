@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
-import { buildBundle } from "./builder/compiler.js";
+import { LinearBuildBundle } from "./builder/linear.js";
+import { HyperionBuildBundle } from "./builder/hyperion.js";
 import { buildRuntime } from "./builder/runtime.js";
 
 type CliCommand =
@@ -68,7 +69,7 @@ async function main() {
 			}
 			const inputPath = values[0]!;
 			const outputPath = values[1]!;
-			await buildBundle(inputPath, outputPath, { obfuscate });
+			await HyperionBuildBundle(inputPath, outputPath, { obfuscate });
 			return;
 		}
 		case "runtime": {
@@ -95,7 +96,7 @@ async function main() {
 			const inputPath = values[0]!;
 			const bundlePath = values[1]!;
 			const runtimePath = values[2]!;
-			await buildBundle(inputPath, bundlePath, { obfuscate });
+			await HyperionBuildBundle(inputPath, bundlePath, { obfuscate });
 			await buildRuntime(bundlePath, runtimePath, { obfuscate });
 			return;
 		}
