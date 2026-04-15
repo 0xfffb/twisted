@@ -8,6 +8,7 @@ import {
 	LoadInstruction,
 	StoreInstruction,
 	CallInstruction,
+	ApplyInstruction,
 	PhiInstruction,
 	LandingPadInstruction,
 	UnaryInstruction,
@@ -157,6 +158,13 @@ class IRBuilder {
 	buildCall(callee: Value, args: Value[]): CallInstruction {
 		const { fn, block } = this.insertPoint();
 		const instr = new CallInstruction(fn.allocReg(), callee, args);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildApply(thisVal: Value, func: Value, args: Value[]): ApplyInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new ApplyInstruction(fn.allocReg(), thisVal, func, args);
 		block.emit(instr);
 		return instr;
 	}

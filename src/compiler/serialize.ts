@@ -12,6 +12,7 @@ import {
 	UnaryInstruction,
 	PhiInstruction,
 	CallInstruction,
+	ApplyInstruction,
 	LoadInstruction,
 	StoreInstruction,
 	ArrayInstruction,
@@ -144,6 +145,15 @@ class HyperionSerializer {
 				kind: "Call",
 				id,
 				callee: this.serializeValue(instr.callee),
+				args: instr.args.map((a) => this.serializeValue(a)),
+			};
+		}
+		if (instr instanceof ApplyInstruction) {
+			return {
+				kind: "Apply",
+				id,
+				thisVal: this.serializeValue(instr.thisVal),
+				func: this.serializeValue(instr.func),
 				args: instr.args.map((a) => this.serializeValue(a)),
 			};
 		}

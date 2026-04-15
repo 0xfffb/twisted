@@ -3,6 +3,7 @@ export * from "./binary.js";
 export * from "./load.js";
 export * from "./store.js";
 export * from "./call.js";
+export * from "./apply.js";
 export * from "./phi.js";
 export * from "./landingpad.js";
 export * from "./unary.js";

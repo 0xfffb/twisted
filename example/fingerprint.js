@@ -144,26 +144,26 @@ function getFingerprint() {
     };
 }
 
-async function testDebuggerRunningTimeDectect() {
+function testDebuggerRunningTimeDectect() {
     const code = "debugger;"
     const t1 = window.performance.now();
     // const blob = new window.Blob([code], { type: 'application/javascript' });
-    // await new window.Worker(window.URL.createObjectURL(blob));
+    // new window.Worker(window.URL.createObjectURL(blob));
     window.eval(code);
     const t2 = window.performance.now();
     return t2 - t1;
 }
 
-async function dectectDebugger() {
+function dectectDebugger() {
     let debugMetrics = []
-    debugMetrics.push(await testDebuggerRunningTimeDectect());
+    debugMetrics.push(testDebuggerRunningTimeDectect());
     debugMetrics.push(window.outerWidth - window.innerWidth);
     debugMetrics.push((window.onconsole === true));
     return debugMetrics;
 }
 
 
-async function rsaEncrypt(plaintext) {
+function rsaEncrypt(plaintext) {
     return true;
 }
 
@@ -214,10 +214,10 @@ function dectectAutomation() {
   automation.push((window.__playwright_evaluation_script__ === true))
   return automation;
 }
-async function getSign() {
+function getSign() {
     let payload = {
         fingerprint: getFingerprint(),
-        debugger: await dectectDebugger(),
+        debugger: dectectDebugger(),
         automation: dectectAutomation(),
         hook: dectectHook(),
     }

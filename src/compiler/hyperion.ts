@@ -721,8 +721,16 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileCallExpression(node: CallExpression, scope: SSAScope): Value {
-		const callee = this.compileExpression(node.callee as Expression, scope);
 		const args = node.arguments.map((arg) => this.compileExpression(arg as Expression, scope));
+		if (node.callee.type === "MemberExpression") {
+			const mem = node.callee as MemberExpression;
+			const thisVal = this.compileExpression(mem.object as Expression, scope);
+			const func = mem.computed
+				? this.builder.buildGetElem(thisVal, this.compileExpression(mem.property as Expression, scope))
+				: this.builder.buildGetProp(thisVal, (mem.property as Identifier).name);
+			return this.builder.buildApply(thisVal, func, args);
+		}
+		const callee = this.compileExpression(node.callee as Expression, scope);
 		return this.builder.buildCall(callee, args);
 	}
 

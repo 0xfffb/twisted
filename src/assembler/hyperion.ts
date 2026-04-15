@@ -507,6 +507,19 @@ class HyperionAssembler extends BaseAssembler {
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
+			case "Apply": {
+				const args = ins.args as unknown[];
+				if (!Array.isArray(args)) throw new Error("HyperionAssembler: Apply.args 须为数组");
+				for (const a of args) this.emitValue(a);
+				this.pushIr(
+					createInstruction(Opcode.BuildArray, [createArg(ArgKind.Number, args.length)]),
+				);
+				this.emitValue(ins.thisVal);
+				this.emitValue(ins.func);
+				this.pushIr(createInstruction(Opcode.Apply, []));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
 			case "ForInInit": {
 				this.emitValue(ins.obj);
 				this.pushIr(createInstruction(Opcode.ForInInit, []));
