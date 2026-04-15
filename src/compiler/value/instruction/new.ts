@@ -3,7 +3,11 @@ import { Instruction } from "./instruction.js";
 
 export class NewInstruction extends Instruction {
 	readonly kind = "New" as const;
-	constructor(id: number, public readonly callee: Value, public readonly args: Value[]) {
+	constructor(
+		id: number,
+		public readonly callee: Value,
+		public readonly args: Value[],
+	) {
 		super(id);
 	}
 	dump(): string {

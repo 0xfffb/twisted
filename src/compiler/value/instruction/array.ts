@@ -3,7 +3,10 @@ import { Instruction } from "./instruction.js";
 
 export class ArrayInstruction extends Instruction {
 	readonly kind = "Array" as const;
-	constructor(id: number, public readonly elements: Value[]) {
+	constructor(
+		id: number,
+		public readonly elements: Value[],
+	) {
 		super(id);
 	}
 	dump(): string {

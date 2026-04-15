@@ -39,13 +39,17 @@ import { IRModule } from "./module.js";
 import { ConstValue } from "./value/constant/const.js";
 import { Value } from "./value/value.js";
 
-interface LoopFrame { breakBlock: BasicBlock; continueBlock: BasicBlock; }
-
+interface LoopFrame {
+	breakBlock: BasicBlock;
+	continueBlock: BasicBlock;
+}
 
 class SSAScope {
 	private bindings = new Map<string, Value>();
 
-	define(name: string, val: Value): void { this.bindings.set(name, val); }
+	define(name: string, val: Value): void {
+		this.bindings.set(name, val);
+	}
 
 	lookup(name: string): Value {
 		const v = this.bindings.get(name);
@@ -53,13 +57,21 @@ class SSAScope {
 		return v;
 	}
 
-	tryLookup(name: string): Value | undefined { return this.bindings.get(name); }
+	tryLookup(name: string): Value | undefined {
+		return this.bindings.get(name);
+	}
 
-	has(name: string): boolean { return this.bindings.has(name); }
+	has(name: string): boolean {
+		return this.bindings.has(name);
+	}
 
-	snapshot(): Map<string, Value> { return new Map(this.bindings); }
+	snapshot(): Map<string, Value> {
+		return new Map(this.bindings);
+	}
 
-	restore(snap: Map<string, Value>): void { this.bindings = new Map(snap); }
+	restore(snap: Map<string, Value>): void {
+		this.bindings = new Map(snap);
+	}
 }
 
 class HyperionCompiler extends BaseCompiler {
@@ -135,7 +147,7 @@ class HyperionCompiler extends BaseCompiler {
 				this.compileThrowStatement(node as ThrowStatement, scope);
 				break;
 			case "EmptyStatement":
-                break;
+				break;
 			case "DebuggerStatement":
 				break;
 			default:
@@ -145,7 +157,12 @@ class HyperionCompiler extends BaseCompiler {
 
 	private compileFunctionDeclaration(node: FunctionDeclaration, scope: SSAScope): void {
 		if (!node.id) throw new Error("Anonymous function declarations are not supported");
-		const fn = this.compileFunctionLike(node.id.name, node.params as Identifier[], node.body, scope);
+		const fn = this.compileFunctionLike(
+			node.id.name,
+			node.params as Identifier[],
+			node.body,
+			scope,
+		);
 		scope.define(node.id.name, fn);
 	}
 
@@ -158,10 +175,15 @@ class HyperionCompiler extends BaseCompiler {
 		const vars = new Set<string>();
 		const walk = (n: any): void => {
 			if (!n || typeof n !== "object") return;
-			if (Array.isArray(n)) { n.forEach(walk); return; }
+			if (Array.isArray(n)) {
+				n.forEach(walk);
+				return;
+			}
 			if (n.type === "FunctionDeclaration" || n.type === "FunctionExpression") return;
-			if (n.type === "UpdateExpression" && n.argument?.type === "Identifier") vars.add(n.argument.name);
-			if (n.type === "AssignmentExpression" && n.left?.type === "Identifier") vars.add(n.left.name);
+			if (n.type === "UpdateExpression" && n.argument?.type === "Identifier")
+				vars.add(n.argument.name);
+			if (n.type === "AssignmentExpression" && n.left?.type === "Identifier")
+				vars.add(n.left.name);
 			for (const v of Object.values(n)) if (typeof v === "object") walk(v);
 		};
 		walk(nodes);
@@ -196,9 +218,14 @@ class HyperionCompiler extends BaseCompiler {
 		}
 	}
 
-	private compileFunctionLike(name: string, params: Identifier[], body: BlockStatement, scope: SSAScope): Value {
+	private compileFunctionLike(
+		name: string,
+		params: Identifier[],
+		body: BlockStatement,
+		scope: SSAScope,
+	): Value {
 		const paramNames = params.map((p) => p.name);
-		const prevFn    = this.builder.currentFn;
+		const prevFn = this.builder.currentFn;
 		const prevBlock = this.builder.currentBlock;
 
 		const fn = this.builder.buildFunction(name, paramNames);
@@ -219,7 +246,7 @@ class HyperionCompiler extends BaseCompiler {
 		const fn = this.builder.currentFn!;
 		const id = fn.blockCount;
 
-		const tryBlock   = fn.createBlock(`try_body.${id}`);
+		const tryBlock = fn.createBlock(`try_body.${id}`);
 		const catchBlock = fn.createBlock(`catch.${id}`);
 		const afterBlock = fn.createBlock(`after.${id}`);
 
@@ -244,12 +271,12 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileDoWhileStatement(node: DoWhileStatement, scope: SSAScope): void {
-		const fn         = this.builder.currentFn!;
+		const fn = this.builder.currentFn!;
 		const entryBlock = this.builder.currentBlock!;
-		const id         = fn.blockCount;
-		const bodyBlock  = fn.createBlock(`do_body.${id}`);
-		const condBlock  = fn.createBlock(`do_cond.${id}`);
-		const after      = fn.createBlock(`do_after.${id}`);
+		const id = fn.blockCount;
+		const bodyBlock = fn.createBlock(`do_body.${id}`);
+		const condBlock = fn.createBlock(`do_cond.${id}`);
+		const after = fn.createBlock(`do_after.${id}`);
 
 		this.builder.buildBr(bodyBlock);
 		this.builder.setInsertPoint(fn, bodyBlock);
@@ -269,13 +296,13 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileForInStatement(node: ForInStatement, scope: SSAScope): void {
-		const fn   = this.builder.currentFn!;
-		const id   = fn.blockCount;
+		const fn = this.builder.currentFn!;
+		const id = fn.blockCount;
 		const cond = fn.createBlock(`forin_cond.${id}`);
 		const body = fn.createBlock(`forin_body.${id}`);
 		const after = fn.createBlock(`forin_after.${id}`);
 
-		const obj  = this.compileExpression(node.right as Expression, scope);
+		const obj = this.compileExpression(node.right as Expression, scope);
 		const iter = this.builder.buildForInInit(obj);
 		this.builder.buildBr(cond);
 
@@ -300,8 +327,8 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileSwitchStatement(node: SwitchStatement, scope: SSAScope): void {
-		const fn   = this.builder.currentFn!;
-		const id   = fn.blockCount;
+		const fn = this.builder.currentFn!;
+		const id = fn.blockCount;
 		const disc = this.compileExpression(node.discriminant as Expression, scope);
 		const after = fn.createBlock(`switch_after.${id}`);
 
@@ -320,7 +347,7 @@ class HyperionCompiler extends BaseCompiler {
 			if (!c.test) continue;
 			this.builder.setInsertPoint(fn, checkBlock);
 			const test = this.compileExpression(c.test as Expression, scope);
-			const cmp  = this.builder.buildEqual(disc, test);
+			const cmp = this.builder.buildEqual(disc, test);
 			checkBlock = fn.createBlock(`switch_check_${i + 1}.${id}`);
 			this.builder.buildCondBr(cmp, caseBlocks[i], checkBlock);
 		}
@@ -352,7 +379,10 @@ class HyperionCompiler extends BaseCompiler {
 					.filter((e): e is { value: Value; block: BasicBlock } => e.value !== undefined);
 				if (incoming.length === 0) continue;
 				const first = incoming[0].value;
-				if (incoming.every((e) => e.value === first)) { scope.define(name, first); continue; }
+				if (incoming.every((e) => e.value === first)) {
+					scope.define(name, first);
+					continue;
+				}
 				scope.define(name, this.builder.buildPhi(incoming));
 			}
 		}
@@ -364,10 +394,10 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileIfStatement(node: IfStatement, scope: SSAScope): void {
-		const fn  = this.builder.currentFn!;
-		const id  = fn.blockCount;
-		const then  = fn.createBlock(`then.${id}`);
-		const els   = node.alternate ? fn.createBlock(`else.${id}`) : null;
+		const fn = this.builder.currentFn!;
+		const id = fn.blockCount;
+		const then = fn.createBlock(`then.${id}`);
+		const els = node.alternate ? fn.createBlock(`else.${id}`) : null;
 		const after = fn.createBlock(`after.${id}`);
 		const entryBlock = this.builder.currentBlock!;
 
@@ -399,7 +429,10 @@ class HyperionCompiler extends BaseCompiler {
 				scope.define(name, (v1 ?? v2)!);
 				continue;
 			}
-			if (v1 === v2) { scope.define(name, v1); continue; }
+			if (v1 === v2) {
+				scope.define(name, v1);
+				continue;
+			}
 			const phi = this.builder.buildPhi([
 				{ block: thenEnd, value: v1 },
 				{ block: node.alternate ? elseEnd : entryBlock, value: v2 },
@@ -409,12 +442,12 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileWhileStatement(node: WhileStatement, scope: SSAScope): void {
-		const fn         = this.builder.currentFn!;
+		const fn = this.builder.currentFn!;
 		const entryBlock = this.builder.currentBlock!;
-		const id         = fn.blockCount;
-		const condBlock  = fn.createBlock(`while_cond.${id}`);
-		const bodyBlock  = fn.createBlock(`while_body.${id}`);
-		const after      = fn.createBlock(`while_after.${id}`);
+		const id = fn.blockCount;
+		const condBlock = fn.createBlock(`while_cond.${id}`);
+		const bodyBlock = fn.createBlock(`while_body.${id}`);
+		const after = fn.createBlock(`while_after.${id}`);
 
 		this.builder.buildBr(condBlock);
 		this.builder.setInsertPoint(fn, condBlock);
@@ -435,12 +468,12 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileForStatement(node: ForStatement, scope: SSAScope): void {
-		const fn    = this.builder.currentFn!;
-		const id    = fn.blockCount;
-		const condBlock   = fn.createBlock(`for_cond.${id}`);
-		const bodyBlock   = fn.createBlock(`for_body.${id}`);
+		const fn = this.builder.currentFn!;
+		const id = fn.blockCount;
+		const condBlock = fn.createBlock(`for_cond.${id}`);
+		const bodyBlock = fn.createBlock(`for_body.${id}`);
 		const updateBlock = node.update ? fn.createBlock(`for_update.${id}`) : null;
-		const after       = fn.createBlock(`for_after.${id}`);
+		const after = fn.createBlock(`for_after.${id}`);
 		const continueTarget = updateBlock ?? condBlock;
 
 		if (node.init) {
@@ -567,31 +600,36 @@ class HyperionCompiler extends BaseCompiler {
 
 	private compileCallExpression(node: CallExpression, scope: SSAScope): Value {
 		const callee = this.compileExpression(node.callee as Expression, scope);
-		const args = node.arguments.map((arg) =>
-			this.compileExpression(arg as Expression, scope),
-		);
+		const args = node.arguments.map((arg) => this.compileExpression(arg as Expression, scope));
 		return this.builder.buildCall(callee, args);
 	}
 
 	private compileUnaryExpression(node: UnaryExpression, scope: SSAScope): Value {
 		const operand = this.compileExpression(node.argument as Expression, scope);
 		switch (node.operator) {
-			case "!":      return this.builder.buildNot(operand);
-			case "-":      return this.builder.buildNeg(operand);
-			case "typeof": return this.builder.buildTypeof(operand);
-			case "void":   return this.builder.buildVoid(operand);
-			default: throw new Error(`Unsupported unary operator: ${node.operator}`);
+			case "!":
+				return this.builder.buildNot(operand);
+			case "-":
+				return this.builder.buildNeg(operand);
+			case "typeof":
+				return this.builder.buildTypeof(operand);
+			case "void":
+				return this.builder.buildVoid(operand);
+			default:
+				throw new Error(`Unsupported unary operator: ${node.operator}`);
 		}
 	}
 
 	private compileUpdateExpression(node: UpdateExpression, scope: SSAScope): Value {
-		if (node.argument.type !== "Identifier") throw new Error("Only identifier update is supported");
+		if (node.argument.type !== "Identifier")
+			throw new Error("Only identifier update is supported");
 		const name = (node.argument as Identifier).name;
-		const old  = scope.lookup(name);
-		const one  = new ConstValue(1);
-		const updated = node.operator === "++"
-			? this.builder.buildAdd(old, one)
-			: this.builder.buildSub(old, one);
+		const old = scope.lookup(name);
+		const one = new ConstValue(1);
+		const updated =
+			node.operator === "++"
+				? this.builder.buildAdd(old, one)
+				: this.builder.buildSub(old, one);
 		scope.define(name, updated);
 		return node.prefix ? updated : old;
 	}
@@ -610,12 +648,23 @@ class HyperionCompiler extends BaseCompiler {
 			const name = (node.left as Identifier).name;
 			let val: Value;
 			switch (node.operator) {
-				case "=":   val = rhs; break;
-				case "+=":  val = this.builder.buildAdd(scope.lookup(name), rhs); break;
-				case "-=":  val = this.builder.buildSub(scope.lookup(name), rhs); break;
-				case "*=":  val = this.builder.buildMul(scope.lookup(name), rhs); break;
-				case "/=":  val = this.builder.buildDiv(scope.lookup(name), rhs); break;
-				default: throw new Error(`Unsupported assignment operator: ${node.operator}`);
+				case "=":
+					val = rhs;
+					break;
+				case "+=":
+					val = this.builder.buildAdd(scope.lookup(name), rhs);
+					break;
+				case "-=":
+					val = this.builder.buildSub(scope.lookup(name), rhs);
+					break;
+				case "*=":
+					val = this.builder.buildMul(scope.lookup(name), rhs);
+					break;
+				case "/=":
+					val = this.builder.buildDiv(scope.lookup(name), rhs);
+					break;
+				default:
+					throw new Error(`Unsupported assignment operator: ${node.operator}`);
 			}
 			scope.define(name, val);
 			return val;
@@ -624,20 +673,37 @@ class HyperionCompiler extends BaseCompiler {
 		if (node.left.type === "MemberExpression") {
 			const mem = node.left as MemberExpression;
 			const obj = this.compileExpression(mem.object as Expression, scope);
-			const base = node.operator === "=" ? rhs : (() => {
-				const cur = mem.computed
-					? this.builder.buildGetElem(obj, this.compileExpression(mem.property as Expression, scope))
-					: this.builder.buildGetProp(obj, (mem.property as Identifier).name);
-				switch (node.operator) {
-					case "+=": return this.builder.buildAdd(cur, rhs);
-					case "-=": return this.builder.buildSub(cur, rhs);
-					case "*=": return this.builder.buildMul(cur, rhs);
-					case "/=": return this.builder.buildDiv(cur, rhs);
-					default: throw new Error(`Unsupported assignment operator: ${node.operator}`);
-				}
-			})();
+			const base =
+				node.operator === "="
+					? rhs
+					: (() => {
+							const cur = mem.computed
+								? this.builder.buildGetElem(
+										obj,
+										this.compileExpression(mem.property as Expression, scope),
+									)
+								: this.builder.buildGetProp(obj, (mem.property as Identifier).name);
+							switch (node.operator) {
+								case "+=":
+									return this.builder.buildAdd(cur, rhs);
+								case "-=":
+									return this.builder.buildSub(cur, rhs);
+								case "*=":
+									return this.builder.buildMul(cur, rhs);
+								case "/=":
+									return this.builder.buildDiv(cur, rhs);
+								default:
+									throw new Error(
+										`Unsupported assignment operator: ${node.operator}`,
+									);
+							}
+						})();
 			if (mem.computed) {
-				this.builder.buildSetElem(obj, this.compileExpression(mem.property as Expression, scope), base);
+				this.builder.buildSetElem(
+					obj,
+					this.compileExpression(mem.property as Expression, scope),
+					base,
+				);
 			} else {
 				this.builder.buildSetProp(obj, (mem.property as Identifier).name, base);
 			}
@@ -657,12 +723,12 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileLogicalExpression(node: LogicalExpression, scope: SSAScope): Value {
-		const fn  = this.builder.currentFn!;
-		const id  = fn.blockCount;
-		const rhsBlock   = fn.createBlock(`logical_rhs.${id}`);
+		const fn = this.builder.currentFn!;
+		const id = fn.blockCount;
+		const rhsBlock = fn.createBlock(`logical_rhs.${id}`);
 		const afterBlock = fn.createBlock(`logical_after.${id}`);
 
-		const left      = this.compileExpression(node.left as Expression, scope);
+		const left = this.compileExpression(node.left as Expression, scope);
 		const leftBlock = this.builder.currentBlock!;
 
 		if (node.operator === "&&") {
@@ -673,8 +739,8 @@ class HyperionCompiler extends BaseCompiler {
 
 		const snap0 = scope.snapshot();
 		this.builder.setInsertPoint(fn, rhsBlock);
-		const right   = this.compileExpression(node.right as Expression, scope);
-		const rhsEnd  = this.builder.currentBlock!;
+		const right = this.compileExpression(node.right as Expression, scope);
+		const rhsEnd = this.builder.currentBlock!;
 		if (!rhsEnd.terminator) this.builder.buildBr(afterBlock);
 		const snap1 = scope.snapshot();
 		scope.restore(snap0);
@@ -683,23 +749,33 @@ class HyperionCompiler extends BaseCompiler {
 		for (const name of new Set([...snap0.keys(), ...snap1.keys()])) {
 			const v0 = snap0.get(name);
 			const v1 = snap1.get(name);
-			if (!v0 || !v1 || v0 === v1) { scope.define(name, (v0 ?? v1)!); continue; }
-			scope.define(name, this.builder.buildPhi([{ block: leftBlock, value: v0 }, { block: rhsEnd, value: v1 }]));
+			if (!v0 || !v1 || v0 === v1) {
+				scope.define(name, (v0 ?? v1)!);
+				continue;
+			}
+			scope.define(
+				name,
+				this.builder.buildPhi([
+					{ block: leftBlock, value: v0 },
+					{ block: rhsEnd, value: v1 },
+				]),
+			);
 		}
 
 		return this.builder.buildPhi([
 			{ block: leftBlock, value: left },
-			{ block: rhsEnd,   value: right },
+			{ block: rhsEnd, value: right },
 		]);
 	}
 
 	private compileObjectExpression(node: ObjectExpression, scope: SSAScope): Value {
 		const props = node.properties.map((p) => {
 			const prop = p as ObjectProperty;
-			const key  = prop.key.type === "Identifier"
-				? (prop.key as Identifier).name
-				: String((prop.key as any).value);
-			const val  = this.compileExpression(prop.value as Expression, scope);
+			const key =
+				prop.key.type === "Identifier"
+					? (prop.key as Identifier).name
+					: String((prop.key as any).value);
+			const val = this.compileExpression(prop.value as Expression, scope);
 			return { key, value: val };
 		});
 		return this.builder.buildObject(props);
@@ -707,7 +783,7 @@ class HyperionCompiler extends BaseCompiler {
 
 	private compileNewExpression(node: NewExpression, scope: SSAScope): Value {
 		const callee = this.compileExpression(node.callee as Expression, scope);
-		const args   = node.arguments.map((a) => this.compileExpression(a as Expression, scope));
+		const args = node.arguments.map((a) => this.compileExpression(a as Expression, scope));
 		return this.builder.buildNew(callee, args);
 	}
 
@@ -715,18 +791,30 @@ class HyperionCompiler extends BaseCompiler {
 		const lhs = this.compileExpression(node.left as Expression, scope);
 		const rhs = this.compileExpression(node.right as Expression, scope);
 		switch (node.operator) {
-			case "+":   return this.builder.buildAdd(lhs, rhs);
-			case "-":   return this.builder.buildSub(lhs, rhs);
-			case "*":   return this.builder.buildMul(lhs, rhs);
-			case "/":   return this.builder.buildDiv(lhs, rhs);
-			case "==":  return this.builder.buildEqual(lhs, rhs)
-			case "===": return this.builder.buildEqual(lhs, rhs);
-			case "!=":  return this.builder.buildNotEqual(lhs, rhs);
-			case "!==": return this.builder.buildNotEqual(lhs, rhs);
-			case "<":   return this.builder.buildLt(lhs, rhs);
-			case "<=":  return this.builder.buildLte(lhs, rhs);
-			case ">":   return this.builder.buildGt(lhs, rhs);
-			case ">=":  return this.builder.buildGte(lhs, rhs); 
+			case "+":
+				return this.builder.buildAdd(lhs, rhs);
+			case "-":
+				return this.builder.buildSub(lhs, rhs);
+			case "*":
+				return this.builder.buildMul(lhs, rhs);
+			case "/":
+				return this.builder.buildDiv(lhs, rhs);
+			case "==":
+				return this.builder.buildEqual(lhs, rhs);
+			case "===":
+				return this.builder.buildEqual(lhs, rhs);
+			case "!=":
+				return this.builder.buildNotEqual(lhs, rhs);
+			case "!==":
+				return this.builder.buildNotEqual(lhs, rhs);
+			case "<":
+				return this.builder.buildLt(lhs, rhs);
+			case "<=":
+				return this.builder.buildLte(lhs, rhs);
+			case ">":
+				return this.builder.buildGt(lhs, rhs);
+			case ">=":
+				return this.builder.buildGte(lhs, rhs);
 			default:
 				throw new Error(`HyperionCompiler: Unsupported binary operator: ${node.operator}`);
 		}

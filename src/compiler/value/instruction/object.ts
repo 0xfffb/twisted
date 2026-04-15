@@ -5,7 +5,10 @@ export type ObjectProp = { key: string; value: Value };
 
 export class ObjectInstruction extends Instruction {
 	readonly kind = "Object" as const;
-	constructor(id: number, public readonly props: ObjectProp[]) {
+	constructor(
+		id: number,
+		public readonly props: ObjectProp[],
+	) {
 		super(id);
 	}
 	dump(): string {

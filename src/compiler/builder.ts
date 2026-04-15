@@ -92,11 +92,21 @@ class IRBuilder {
 		return this.buildBinary("Div", lhs, rhs);
 	}
 
-	buildEqual(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Equal", lhs, rhs); }
-	buildLt(lhs: Value, rhs: Value): BinaryInstruction   { return this.buildBinary("Lt",    lhs, rhs); }
-	buildLte(lhs: Value, rhs: Value): BinaryInstruction  { return this.buildBinary("Lte",   lhs, rhs); }
-	buildGt(lhs: Value, rhs: Value): BinaryInstruction   { return this.buildBinary("Gt",    lhs, rhs); }
-	buildGte(lhs: Value, rhs: Value): BinaryInstruction  { return this.buildBinary("Gte",   lhs, rhs); }
+	buildEqual(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Equal", lhs, rhs);
+	}
+	buildLt(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Lt", lhs, rhs);
+	}
+	buildLte(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Lte", lhs, rhs);
+	}
+	buildGt(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Gt", lhs, rhs);
+	}
+	buildGte(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Gte", lhs, rhs);
+	}
 
 	buildLoad(slot: number): LoadInstruction {
 		const { fn, block } = this.insertPoint();
@@ -179,10 +189,18 @@ class IRBuilder {
 		return instr;
 	}
 
-	buildNot(operand: Value): UnaryInstruction    { return this.buildUnary("!",      operand); }
-	buildNeg(operand: Value): UnaryInstruction    { return this.buildUnary("-",      operand); }
-	buildTypeof(operand: Value): UnaryInstruction { return this.buildUnary("typeof", operand); }
-	buildVoid(operand: Value): UnaryInstruction   { return this.buildUnary("void",   operand); }
+	buildNot(operand: Value): UnaryInstruction {
+		return this.buildUnary("!", operand);
+	}
+	buildNeg(operand: Value): UnaryInstruction {
+		return this.buildUnary("-", operand);
+	}
+	buildTypeof(operand: Value): UnaryInstruction {
+		return this.buildUnary("typeof", operand);
+	}
+	buildVoid(operand: Value): UnaryInstruction {
+		return this.buildUnary("void", operand);
+	}
 
 	buildNotEqual(lhs: Value, rhs: Value): UnaryInstruction {
 		return this.buildNot(this.buildEqual(lhs, rhs));

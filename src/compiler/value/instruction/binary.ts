@@ -1,7 +1,16 @@
 import type { Value } from "../value.js";
 import { Instruction } from "./instruction.js";
 
-export type BinaryInstructionKind = "Add" | "Sub" | "Mul" | "Div" | "Equal" | "Lt" | "Lte" | "Gt" | "Gte";
+export type BinaryInstructionKind =
+	| "Add"
+	| "Sub"
+	| "Mul"
+	| "Div"
+	| "Equal"
+	| "Lt"
+	| "Lte"
+	| "Gt"
+	| "Gte";
 
 export class BinaryInstruction extends Instruction {
 	readonly kind: BinaryInstructionKind;

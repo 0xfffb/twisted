@@ -1,5 +1,3 @@
-
-
 abstract class BaseCompiler {
 	protected source: string;
 
@@ -7,7 +5,7 @@ abstract class BaseCompiler {
 		this.source = source;
 	}
 
-    abstract compile(): any;
+	abstract compile(): any;
 }
 
 export { BaseCompiler };
