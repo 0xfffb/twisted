@@ -7,4 +7,8 @@ export * from "./phi.js";
 export * from "./landingpad.js";
 export * from "./unary.js";
 export * from "./array.js";
+export * from "./object.js";
+export * from "./new.js";
+export * from "./globalref.js";
+export * from "./forin.js";
 export * from "./terminator/index.js";

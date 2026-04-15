@@ -12,10 +12,18 @@ import {
 	LandingPadInstruction,
 	UnaryInstruction,
 	ArrayInstruction,
+	ObjectInstruction,
+	ObjectProp,
+	NewInstruction,
+	GlobalRefInstruction,
+	ForInInitInstruction,
+	ForInHasInstruction,
+	ForInNextInstruction,
 	BranchTerminator,
 	JmpTerminator,
 	ReturnTerminator,
 	UnreachableTerminator,
+	ThrowTerminator,
 } from "./value/instruction/index.js";
 
 class IRBuilder {
@@ -133,6 +141,32 @@ class IRBuilder {
 		block.terminate(new UnreachableTerminator());
 	}
 
+	buildThrow(value: Value): void {
+		const { block } = this.insertPoint();
+		block.terminate(new ThrowTerminator(value));
+	}
+
+	buildForInInit(obj: Value): ForInInitInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new ForInInitInstruction(fn.allocReg(), obj);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildForInHas(iter: Value): ForInHasInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new ForInHasInstruction(fn.allocReg(), iter);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildForInNext(iter: Value): ForInNextInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new ForInNextInstruction(fn.allocReg(), iter);
+		block.emit(instr);
+		return instr;
+	}
+
 	buildUnary(op: string, operand: Value): UnaryInstruction {
 		const { fn, block } = this.insertPoint();
 		const instr = new UnaryInstruction(fn.allocReg(), op, operand);
@@ -152,6 +186,27 @@ class IRBuilder {
 	buildArray(elements: Value[]): ArrayInstruction {
 		const { fn, block } = this.insertPoint();
 		const instr = new ArrayInstruction(fn.allocReg(), elements);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildObject(props: ObjectProp[]): ObjectInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new ObjectInstruction(fn.allocReg(), props);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildGlobalRef(name: string): GlobalRefInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new GlobalRefInstruction(fn.allocReg(), name);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildNew(callee: Value, args: Value[]): NewInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new NewInstruction(fn.allocReg(), callee, args);
 		block.emit(instr);
 		return instr;
 	}

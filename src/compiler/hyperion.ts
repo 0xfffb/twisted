@@ -7,6 +7,8 @@ import type {
 	BlockStatement,
 	BinaryExpression,
 	UnaryExpression,
+	AssignmentExpression,
+	LogicalExpression,
 	NumericLiteral,
 	StringLiteral,
 	BooleanLiteral,
@@ -15,12 +17,19 @@ import type {
 	FunctionExpression,
 	ReturnStatement,
 	CallExpression,
+	NewExpression,
 	TryStatement,
 	IfStatement,
 	WhileStatement,
+	DoWhileStatement,
 	ForStatement,
+	ForInStatement,
+	SwitchStatement,
+	ThrowStatement,
 	UpdateExpression,
 	ArrayExpression,
+	ObjectExpression,
+	ObjectProperty,
 } from "@babel/types";
 import type { BasicBlock } from "./value/block.js";
 import { BaseCompiler } from "./base.js";
@@ -73,7 +82,7 @@ class HyperionCompiler extends BaseCompiler {
 			this.compileStatement(statement, scope);
 		}
 
-		this.builder.buildUnreachable();
+		if (!this.builder.currentBlock!.terminator) this.builder.buildUnreachable();
 		return this.builder.module;
 	}
 
@@ -111,6 +120,20 @@ class HyperionCompiler extends BaseCompiler {
 				break;
 			case "ContinueStatement":
 				this.compileContinueStatement();
+				break;
+			case "DoWhileStatement":
+				this.compileDoWhileStatement(node as DoWhileStatement, scope);
+				break;
+			case "ForInStatement":
+				this.compileForInStatement(node as ForInStatement, scope);
+				break;
+			case "SwitchStatement":
+				this.compileSwitchStatement(node as SwitchStatement, scope);
+				break;
+			case "ThrowStatement":
+				this.compileThrowStatement(node as ThrowStatement, scope);
+				break;
+			case "EmptyStatement":
 				break;
 			default:
 				throw new Error(`HyperionCompiler: Unsupported statement type ${node.type}`);
@@ -215,6 +238,126 @@ class HyperionCompiler extends BaseCompiler {
 		}
 		if (!catchBlock.terminator) this.builder.buildBr(afterBlock);
 		this.builder.setInsertPoint(fn, afterBlock);
+	}
+
+	private compileDoWhileStatement(node: DoWhileStatement, scope: SSAScope): void {
+		const fn         = this.builder.currentFn!;
+		const entryBlock = this.builder.currentBlock!;
+		const id         = fn.blockCount;
+		const bodyBlock  = fn.createBlock(`do_body.${id}`);
+		const condBlock  = fn.createBlock(`do_cond.${id}`);
+		const after      = fn.createBlock(`do_after.${id}`);
+
+		this.builder.buildBr(bodyBlock);
+		this.builder.setInsertPoint(fn, bodyBlock);
+		const phis = this.insertLoopPhis(node.body, scope, entryBlock);
+
+		this.loopStack.push({ breakBlock: after, continueBlock: condBlock });
+		this.compileStatement(node.body, scope);
+		if (!this.builder.currentBlock!.terminator) this.builder.buildBr(condBlock);
+		this.loopStack.pop();
+
+		this.builder.setInsertPoint(fn, condBlock);
+		const test = this.compileExpression(node.test as Expression, scope);
+		this.builder.buildCondBr(test, bodyBlock, after);
+
+		this.backfillLoopPhis(phis, condBlock, scope);
+		this.builder.setInsertPoint(fn, after);
+	}
+
+	private compileForInStatement(node: ForInStatement, scope: SSAScope): void {
+		const fn   = this.builder.currentFn!;
+		const id   = fn.blockCount;
+		const cond = fn.createBlock(`forin_cond.${id}`);
+		const body = fn.createBlock(`forin_body.${id}`);
+		const after = fn.createBlock(`forin_after.${id}`);
+
+		const obj  = this.compileExpression(node.right as Expression, scope);
+		const iter = this.builder.buildForInInit(obj);
+		this.builder.buildBr(cond);
+
+		this.builder.setInsertPoint(fn, cond);
+		const has = this.builder.buildForInHas(iter);
+		this.builder.buildCondBr(has, body, after);
+
+		this.builder.setInsertPoint(fn, body);
+		const key = this.builder.buildForInNext(iter);
+		if (node.left.type === "VariableDeclaration") {
+			const name = ((node.left as VariableDeclaration).declarations[0].id as Identifier).name;
+			scope.define(name, key);
+		} else if (node.left.type === "Identifier") {
+			scope.define((node.left as Identifier).name, key);
+		}
+		this.loopStack.push({ breakBlock: after, continueBlock: cond });
+		this.compileStatement(node.body, scope);
+		if (!this.builder.currentBlock!.terminator) this.builder.buildBr(cond);
+		this.loopStack.pop();
+
+		this.builder.setInsertPoint(fn, after);
+	}
+
+	private compileSwitchStatement(node: SwitchStatement, scope: SSAScope): void {
+		const fn   = this.builder.currentFn!;
+		const id   = fn.blockCount;
+		const disc = this.compileExpression(node.discriminant as Expression, scope);
+		const after = fn.createBlock(`switch_after.${id}`);
+
+		const caseBlocks = node.cases.map((c, i) =>
+			fn.createBlock(c.test ? `case_${i}.${id}` : `default.${id}`),
+		);
+		const defaultIdx = node.cases.findIndex((c) => !c.test);
+
+		this.loopStack.push({ breakBlock: after, continueBlock: after });
+		const snap0 = scope.snapshot();
+		const exitSnaps: Array<{ snap: Map<string, Value>; block: BasicBlock }> = [];
+
+		let checkBlock = this.builder.currentBlock!;
+		for (let i = 0; i < node.cases.length; i++) {
+			const c = node.cases[i];
+			if (!c.test) continue;
+			this.builder.setInsertPoint(fn, checkBlock);
+			const test = this.compileExpression(c.test as Expression, scope);
+			const cmp  = this.builder.buildEqual(disc, test);
+			checkBlock = fn.createBlock(`switch_check_${i + 1}.${id}`);
+			this.builder.buildCondBr(cmp, caseBlocks[i], checkBlock);
+		}
+		this.builder.setInsertPoint(fn, checkBlock);
+		this.builder.buildBr(defaultIdx >= 0 ? caseBlocks[defaultIdx] : after);
+
+		for (let i = 0; i < node.cases.length; i++) {
+			scope.restore(snap0);
+			this.builder.setInsertPoint(fn, caseBlocks[i]);
+			for (const stmt of node.cases[i].consequent) this.compileStatement(stmt, scope);
+			const cur = this.builder.currentBlock!;
+			if (!cur.terminator) {
+				const next = i + 1 < caseBlocks.length ? caseBlocks[i + 1] : after;
+				this.builder.buildBr(next);
+				exitSnaps.push({ snap: scope.snapshot(), block: cur });
+			}
+		}
+
+		this.loopStack.pop();
+		scope.restore(snap0);
+		this.builder.setInsertPoint(fn, after);
+
+		if (exitSnaps.length > 0) {
+			const allKeys = new Set<string>();
+			exitSnaps.forEach(({ snap }) => snap.forEach((_, k) => allKeys.add(k)));
+			for (const name of allKeys) {
+				const incoming = exitSnaps
+					.map(({ snap, block }) => ({ value: snap.get(name), block }))
+					.filter((e): e is { value: Value; block: BasicBlock } => e.value !== undefined);
+				if (incoming.length === 0) continue;
+				const first = incoming[0].value;
+				if (incoming.every((e) => e.value === first)) { scope.define(name, first); continue; }
+				scope.define(name, this.builder.buildPhi(incoming));
+			}
+		}
+	}
+
+	private compileThrowStatement(node: ThrowStatement, scope: SSAScope): void {
+		const val = this.compileExpression(node.argument as Expression, scope);
+		this.builder.buildThrow(val);
 	}
 
 	private compileIfStatement(node: IfStatement, scope: SSAScope): void {
@@ -388,8 +531,10 @@ class HyperionCompiler extends BaseCompiler {
 				return new ConstValue((node as BooleanLiteral).value);
 			case "NullLiteral":
 				return new ConstValue(null);
-			case "Identifier":
-				return scope.lookup((node as Identifier).name);
+			case "Identifier": {
+				const name = (node as Identifier).name;
+				return scope.tryLookup(name) ?? this.builder.buildGlobalRef(name);
+			}
 			case "CallExpression":
 				return this.compileCallExpression(node as CallExpression, scope);
 			case "FunctionExpression":
@@ -400,6 +545,14 @@ class HyperionCompiler extends BaseCompiler {
 				return this.compileUpdateExpression(node as UpdateExpression, scope);
 			case "ArrayExpression":
 				return this.compileArrayExpression(node as ArrayExpression, scope);
+			case "ObjectExpression":
+				return this.compileObjectExpression(node as ObjectExpression, scope);
+			case "AssignmentExpression":
+				return this.compileAssignmentExpression(node as AssignmentExpression, scope);
+			case "LogicalExpression":
+				return this.compileLogicalExpression(node as LogicalExpression, scope);
+			case "NewExpression":
+				return this.compileNewExpression(node as NewExpression, scope);
 			default:
 				throw new Error(`HyperionCompiler: Unsupported expression type ${node.type}`);
 		}
@@ -441,6 +594,78 @@ class HyperionCompiler extends BaseCompiler {
 			el ? this.compileExpression(el as Expression, scope) : new ConstValue(null),
 		);
 		return this.builder.buildArray(elements);
+	}
+
+	private compileAssignmentExpression(node: AssignmentExpression, scope: SSAScope): Value {
+		if (node.left.type !== "Identifier") throw new Error("Only identifier assignment is supported");
+		const name = (node.left as Identifier).name;
+		const rhs  = this.compileExpression(node.right as Expression, scope);
+		let val: Value;
+		switch (node.operator) {
+			case "=":   val = rhs; break;
+			case "+=":  val = this.builder.buildAdd(scope.lookup(name), rhs); break;
+			case "-=":  val = this.builder.buildSub(scope.lookup(name), rhs); break;
+			case "*=":  val = this.builder.buildMul(scope.lookup(name), rhs); break;
+			case "/=":  val = this.builder.buildDiv(scope.lookup(name), rhs); break;
+			default: throw new Error(`Unsupported assignment operator: ${node.operator}`);
+		}
+		scope.define(name, val);
+		return val;
+	}
+
+	private compileLogicalExpression(node: LogicalExpression, scope: SSAScope): Value {
+		const fn  = this.builder.currentFn!;
+		const id  = fn.blockCount;
+		const rhsBlock   = fn.createBlock(`logical_rhs.${id}`);
+		const afterBlock = fn.createBlock(`logical_after.${id}`);
+
+		const left      = this.compileExpression(node.left as Expression, scope);
+		const leftBlock = this.builder.currentBlock!;
+
+		if (node.operator === "&&") {
+			this.builder.buildCondBr(left, rhsBlock, afterBlock);
+		} else {
+			this.builder.buildCondBr(left, afterBlock, rhsBlock);
+		}
+
+		const snap0 = scope.snapshot();
+		this.builder.setInsertPoint(fn, rhsBlock);
+		const right   = this.compileExpression(node.right as Expression, scope);
+		const rhsEnd  = this.builder.currentBlock!;
+		if (!rhsEnd.terminator) this.builder.buildBr(afterBlock);
+		const snap1 = scope.snapshot();
+		scope.restore(snap0);
+
+		this.builder.setInsertPoint(fn, afterBlock);
+		for (const name of new Set([...snap0.keys(), ...snap1.keys()])) {
+			const v0 = snap0.get(name);
+			const v1 = snap1.get(name);
+			if (!v0 || !v1 || v0 === v1) { scope.define(name, (v0 ?? v1)!); continue; }
+			scope.define(name, this.builder.buildPhi([{ block: leftBlock, value: v0 }, { block: rhsEnd, value: v1 }]));
+		}
+
+		return this.builder.buildPhi([
+			{ block: leftBlock, value: left },
+			{ block: rhsEnd,   value: right },
+		]);
+	}
+
+	private compileObjectExpression(node: ObjectExpression, scope: SSAScope): Value {
+		const props = node.properties.map((p) => {
+			const prop = p as ObjectProperty;
+			const key  = prop.key.type === "Identifier"
+				? (prop.key as Identifier).name
+				: String((prop.key as any).value);
+			const val  = this.compileExpression(prop.value as Expression, scope);
+			return { key, value: val };
+		});
+		return this.builder.buildObject(props);
+	}
+
+	private compileNewExpression(node: NewExpression, scope: SSAScope): Value {
+		const callee = this.compileExpression(node.callee as Expression, scope);
+		const args   = node.arguments.map((a) => this.compileExpression(a as Expression, scope));
+		return this.builder.buildNew(callee, args);
 	}
 
 	private compileBinaryExpression(node: BinaryExpression, scope: SSAScope): Value {
