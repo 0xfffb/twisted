@@ -599,6 +599,8 @@ class HyperionCompiler extends BaseCompiler {
 				return this.compileAssignmentExpression(node as AssignmentExpression, scope);
 			case "LogicalExpression":
 				return this.compileLogicalExpression(node as LogicalExpression, scope);
+			case "ConditionalExpression":
+				return this.compileConditionalExpression(node as any, scope);
 			case "NewExpression":
 				return this.compileNewExpression(node as NewExpression, scope);
 			case "MemberExpression":
@@ -749,6 +751,49 @@ class HyperionCompiler extends BaseCompiler {
 			return this.builder.buildGetElem(obj, key);
 		}
 		return this.builder.buildGetProp(obj, (node.property as Identifier).name);
+	}
+
+	private compileConditionalExpression(
+		node: { test: Expression; consequent: Expression; alternate: Expression },
+		scope: SSAScope,
+	): Value {
+		const fn = this.builder.currentFn!;
+		const id = fn.blockCount;
+		const thenBlock  = fn.createBlock(`cond_then.${id}`);
+		const elseBlock  = fn.createBlock(`cond_else.${id}`);
+		const afterBlock = fn.createBlock(`cond_after.${id}`);
+
+		const test = this.compileExpression(node.test, scope);
+		this.builder.buildCondBr(test, thenBlock, elseBlock);
+
+		const snap0 = scope.snapshot();
+		this.builder.setInsertPoint(fn, thenBlock);
+		const thenVal = this.compileExpression(node.consequent, scope);
+		const thenEnd = this.builder.currentBlock!;
+		if (!thenEnd.terminator) this.builder.buildBr(afterBlock);
+		const snapThen = scope.snapshot();
+
+		scope.restore(snap0);
+		this.builder.setInsertPoint(fn, elseBlock);
+		const elseVal = this.compileExpression(node.alternate, scope);
+		const elseEnd = this.builder.currentBlock!;
+		if (!elseEnd.terminator) this.builder.buildBr(afterBlock);
+		const snapElse = scope.snapshot();
+
+		this.builder.setInsertPoint(fn, afterBlock);
+		for (const name of new Set([...snapThen.keys(), ...snapElse.keys()])) {
+			const vT = snapThen.get(name);
+			const vE = snapElse.get(name);
+			if (!vT || !vE || vT === vE) { scope.define(name, (vT ?? vE)!); continue; }
+			scope.define(name, this.builder.buildPhi([
+				{ block: thenEnd, value: vT },
+				{ block: elseEnd, value: vE },
+			]));
+		}
+		return this.builder.buildPhi([
+			{ block: thenEnd, value: thenVal },
+			{ block: elseEnd, value: elseVal },
+		]);
 	}
 
 	private compileLogicalExpression(node: LogicalExpression, scope: SSAScope): Value {
