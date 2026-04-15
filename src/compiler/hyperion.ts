@@ -36,6 +36,7 @@ import type { BasicBlock } from "./value/block.js";
 import { BaseCompiler } from "./base.js";
 import { IRBuilder } from "./builder.js";
 import { IRModule } from "./module.js";
+import { HyperionSerializer } from "./serialize.js";
 import { ConstValue } from "./value/constant/const.js";
 import { Value } from "./value/value.js";
 
@@ -78,13 +79,15 @@ class HyperionCompiler extends BaseCompiler {
 	readonly builder: IRBuilder;
 	private anonCount = 0;
 	private loopStack: LoopFrame[] = [];
+	private serializer: HyperionSerializer;
 
 	constructor(source: string) {
 		super(source);
 		this.builder = new IRBuilder(new IRModule("hyperion"));
+		this.serializer = new HyperionSerializer();
 	}
 
-	compile(): IRModule {
+	compile(): string {
 		const program = parser.parse(this.source, { sourceType: "script" }).program;
 
 		const fn = this.builder.buildFunction("__main__", []);
@@ -96,8 +99,12 @@ class HyperionCompiler extends BaseCompiler {
 		}
 
 		if (!this.builder.currentBlock!.terminator) this.builder.buildUnreachable();
-		return this.builder.module;
+		return this.serializer.serializeModuleToJson(this.builder.module);
 	}
+
+    dump(): string {
+        return this.builder.module.dump();
+    }
 
 	private compileStatement(node: Statement, scope: SSAScope): void {
 		switch (node.type) {

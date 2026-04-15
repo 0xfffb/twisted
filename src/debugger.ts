@@ -32,10 +32,14 @@ function hookFetch() {
 }
 
 hookFetch();
+
+var c = 1 + 2 + 3
 	`;
 	const compiler = new HyperionCompiler(code);
-	const module = compiler.compile();
-	console.log(module.dump());
+	const json = compiler.compile();
+	console.log(json);
+
+	console.log(compiler.dump());
 }
 
 void main();
