@@ -8,6 +8,7 @@ class BasicBlock extends Value {
 	readonly name: string;
 	instructions: Instruction[];
 	terminator: Terminator | undefined;
+	unwindTo: BasicBlock | undefined;
 
 	constructor(id: number, name: string) {
 		super();
@@ -15,6 +16,7 @@ class BasicBlock extends Value {
 		this.name = name;
 		this.instructions = [];
 		this.terminator = undefined;
+		this.unwindTo = undefined;
 	}
 
 	emit(instr: Instruction): void {

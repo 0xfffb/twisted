@@ -9,6 +9,7 @@ import {
 	StoreInstruction,
 	CallInstruction,
 	PhiInstruction,
+	LandingPadInstruction,
 	BranchTerminator,
 	JmpTerminator,
 	ReturnTerminator,
@@ -26,6 +27,14 @@ class IRBuilder {
 
 	get module(): IRModule {
 		return this._module;
+	}
+
+	get currentFn(): IRFunction | null {
+		return this._currentFn;
+	}
+
+	get currentBlock(): BasicBlock | null {
+		return this._currentBlock;
 	}
 
 	setInsertPoint(fn: IRFunction, block: BasicBlock): void {
@@ -102,12 +111,12 @@ class IRBuilder {
 
 	buildCondBr(cond: Value, ifTrue: BasicBlock, ifFalse: BasicBlock): void {
 		const { block } = this.insertPoint();
-		block.terminate(new BranchTerminator(cond, ifTrue.id, ifFalse.id));
+		block.terminate(new BranchTerminator(cond, ifTrue, ifFalse));
 	}
 
 	buildBr(dest: BasicBlock): void {
 		const { block } = this.insertPoint();
-		block.terminate(new JmpTerminator(dest.id));
+		block.terminate(new JmpTerminator(dest));
 	}
 
 	buildReturn(value: Value): void {
@@ -118,6 +127,17 @@ class IRBuilder {
 	buildUnreachable(): void {
 		const { block } = this.insertPoint();
 		block.terminate(new UnreachableTerminator());
+	}
+
+	buildLandingPad(): LandingPadInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new LandingPadInstruction(fn.allocReg());
+		block.emit(instr);
+		return instr;
+	}
+
+	setUnwindTarget(block: BasicBlock, unwindTo: BasicBlock): void {
+		block.unwindTo = unwindTo;
 	}
 
 	private insertPoint(): { fn: IRFunction; block: BasicBlock } {

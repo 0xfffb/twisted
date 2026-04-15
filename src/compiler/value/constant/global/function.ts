@@ -38,6 +38,10 @@ class IRFunction extends GlobalValue {
 		return this.blocks[0];
 	}
 
+	get blockCount(): number {
+		return this.nextBlockId;
+	}
+
 	getBlock(id: number): BasicBlock | undefined {
 		return this.blocks.find((b) => b.id === id);
 	}
@@ -46,7 +50,8 @@ class IRFunction extends GlobalValue {
 		const paramStr = this.params.map((p) => `${p}`).join(", ");
 		const lines: string[] = [`define @${this.name}(${paramStr}) {`];
 		for (const block of this.blocks) {
-			lines.push(`  ${block.name}:`);
+			const unwind = block.unwindTo ? `  [unwind → ${block.unwindTo.name}]` : "";
+			lines.push(`  ${block.name}:${unwind}`);
 			for (const instr of block.instructions) {
 				lines.push(`    ${instr.dump()}`);
 			}
