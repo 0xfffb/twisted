@@ -10,6 +10,8 @@ import {
 	CallInstruction,
 	PhiInstruction,
 	LandingPadInstruction,
+	UnaryInstruction,
+	ArrayInstruction,
 	BranchTerminator,
 	JmpTerminator,
 	ReturnTerminator,
@@ -77,9 +79,11 @@ class IRBuilder {
 		return this.buildBinary("Div", lhs, rhs);
 	}
 
-	buildEqual(lhs: Value, rhs: Value): BinaryInstruction {
-		return this.buildBinary("Equal", lhs, rhs);
-	}
+	buildEqual(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Equal", lhs, rhs); }
+	buildLt(lhs: Value, rhs: Value): BinaryInstruction   { return this.buildBinary("Lt",    lhs, rhs); }
+	buildLte(lhs: Value, rhs: Value): BinaryInstruction  { return this.buildBinary("Lte",   lhs, rhs); }
+	buildGt(lhs: Value, rhs: Value): BinaryInstruction   { return this.buildBinary("Gt",    lhs, rhs); }
+	buildGte(lhs: Value, rhs: Value): BinaryInstruction  { return this.buildBinary("Gte",   lhs, rhs); }
 
 	buildLoad(slot: number): LoadInstruction {
 		const { fn, block } = this.insertPoint();
@@ -127,6 +131,29 @@ class IRBuilder {
 	buildUnreachable(): void {
 		const { block } = this.insertPoint();
 		block.terminate(new UnreachableTerminator());
+	}
+
+	buildUnary(op: string, operand: Value): UnaryInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new UnaryInstruction(fn.allocReg(), op, operand);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildNot(operand: Value): UnaryInstruction    { return this.buildUnary("!",      operand); }
+	buildNeg(operand: Value): UnaryInstruction    { return this.buildUnary("-",      operand); }
+	buildTypeof(operand: Value): UnaryInstruction { return this.buildUnary("typeof", operand); }
+	buildVoid(operand: Value): UnaryInstruction   { return this.buildUnary("void",   operand); }
+
+	buildNotEqual(lhs: Value, rhs: Value): UnaryInstruction {
+		return this.buildNot(this.buildEqual(lhs, rhs));
+	}
+
+	buildArray(elements: Value[]): ArrayInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new ArrayInstruction(fn.allocReg(), elements);
+		block.emit(instr);
+		return instr;
 	}
 
 	buildLandingPad(): LandingPadInstruction {

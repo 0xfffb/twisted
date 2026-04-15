@@ -5,4 +5,6 @@ export * from "./store.js";
 export * from "./call.js";
 export * from "./phi.js";
 export * from "./landingpad.js";
+export * from "./unary.js";
+export * from "./array.js";
 export * from "./terminator/index.js";

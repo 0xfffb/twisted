@@ -3,37 +3,27 @@ import { HyperionCompiler } from "./compiler/index.js";
 
 async function main() {
 	const code = `
-var a = 1 + 2 + 3;
-function test() {
-    return 1 + 2 + 3;
-}
-test();
+var x = [1, 2, 3];
+var neg = -5;
+var yes = !false;
 
-function outer() {
-  // 外部函数变量
-  var count = 0;
-
-  // 内部函数
-  function inner() {
-    count++;
-    console.log(count);
-  }
-
-  // 把内部函数返出去
-  return inner;
+if (x) {
+  var a = 1;
+} else {
+  var a = 2;
 }
 
-var fn = outer();
+var i = 0;
+while (i < 3) {
+  i++;
+}
 
-fn(); // 1
-fn(); // 2
-fn(); // 3
-
+for (var j = 0; j < 5; j++) {
+  if (j == 2) break;
+}
     `;
 	const compiler = new HyperionCompiler(code);
 	const module = compiler.compile();
-	console.dir(module, { depth: null });
-	console.log("---------------------")
 	console.log(module.dump());
 }
 
