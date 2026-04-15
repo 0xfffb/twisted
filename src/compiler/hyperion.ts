@@ -246,27 +246,38 @@ class HyperionCompiler extends BaseCompiler {
 		const fn = this.builder.currentFn!;
 		const id = fn.blockCount;
 
-		const tryBlock = fn.createBlock(`try_body.${id}`);
-		const catchBlock = fn.createBlock(`catch.${id}`);
+		const tryBlock   = fn.createBlock(`try_body.${id}`);
 		const afterBlock = fn.createBlock(`after.${id}`);
+		const catchBlock = node.handler   ? fn.createBlock(`catch.${id}`)   : null;
+		const finallyBlock = node.finalizer ? fn.createBlock(`finally.${id}`) : null;
+		const landingTarget = catchBlock ?? finallyBlock ?? afterBlock;
 
 		this.builder.buildBr(tryBlock);
 		this.builder.setInsertPoint(fn, tryBlock);
-		this.builder.setUnwindTarget(tryBlock, catchBlock);
+		this.builder.setUnwindTarget(tryBlock, landingTarget);
 		this.compileBlockStatement(node.block, scope);
-		if (!tryBlock.terminator) this.builder.buildBr(afterBlock);
+		if (!this.builder.currentBlock!.terminator)
+			this.builder.buildBr(finallyBlock ?? afterBlock);
 
-		this.builder.setInsertPoint(fn, catchBlock);
-		const exVal = this.builder.buildLandingPad();
-		const catchScope = new SSAScope();
-		for (const [k, v] of scope.snapshot()) catchScope.define(k, v);
-		if (node.handler?.param?.type === "Identifier") {
-			catchScope.define((node.handler.param as Identifier).name, exVal);
+		if (catchBlock) {
+			this.builder.setInsertPoint(fn, catchBlock);
+			const exVal = this.builder.buildLandingPad();
+			const catchScope = new SSAScope();
+			for (const [k, v] of scope.snapshot()) catchScope.define(k, v);
+			if (node.handler!.param?.type === "Identifier") {
+				catchScope.define((node.handler!.param as Identifier).name, exVal);
+			}
+			this.compileBlockStatement(node.handler!.body, catchScope);
+			if (!this.builder.currentBlock!.terminator)
+				this.builder.buildBr(finallyBlock ?? afterBlock);
 		}
-		if (node.handler) {
-			this.compileBlockStatement(node.handler.body, catchScope);
+
+		if (finallyBlock) {
+			this.builder.setInsertPoint(fn, finallyBlock);
+			this.compileBlockStatement(node.finalizer!, scope);
+			if (!this.builder.currentBlock!.terminator) this.builder.buildBr(afterBlock);
 		}
-		if (!catchBlock.terminator) this.builder.buildBr(afterBlock);
+
 		this.builder.setInsertPoint(fn, afterBlock);
 	}
 
@@ -569,6 +580,7 @@ class HyperionCompiler extends BaseCompiler {
 				return new ConstValue(null);
 			case "Identifier": {
 				const name = (node as Identifier).name;
+				if (name === "arguments") return this.builder.buildArguments();
 				return scope.tryLookup(name) ?? this.builder.buildGlobalRef(name);
 			}
 			case "CallExpression":
@@ -605,16 +617,27 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileUnaryExpression(node: UnaryExpression, scope: SSAScope): Value {
+		if (node.operator === "delete") {
+			const arg = node.argument;
+			if (arg.type === "MemberExpression") {
+				const mem = arg as MemberExpression;
+				const obj = this.compileExpression(mem.object as Expression, scope);
+				if (mem.computed) {
+					const key = this.compileExpression(mem.property as Expression, scope);
+					return this.builder.buildDeleteElem(obj, key);
+				}
+				return this.builder.buildDeleteProp(obj, (mem.property as Identifier).name);
+			}
+			return new ConstValue(true);
+		}
 		const operand = this.compileExpression(node.argument as Expression, scope);
 		switch (node.operator) {
-			case "!":
-				return this.builder.buildNot(operand);
-			case "-":
-				return this.builder.buildNeg(operand);
-			case "typeof":
-				return this.builder.buildTypeof(operand);
-			case "void":
-				return this.builder.buildVoid(operand);
+			case "!": return this.builder.buildNot(operand);
+			case "-": return this.builder.buildNeg(operand);
+			case "~": return this.builder.buildUnary("~", operand);
+			case "+": return this.builder.buildUnary("+", operand);
+			case "typeof": return this.builder.buildTypeof(operand);
+			case "void": return this.builder.buildVoid(operand);
 			default:
 				throw new Error(`Unsupported unary operator: ${node.operator}`);
 		}
@@ -815,6 +838,24 @@ class HyperionCompiler extends BaseCompiler {
 				return this.builder.buildGt(lhs, rhs);
 			case ">=":
 				return this.builder.buildGte(lhs, rhs);
+			case "%":
+				return this.builder.buildMod(lhs, rhs);
+			case "&":
+				return this.builder.buildBitAnd(lhs, rhs);
+			case "|":
+				return this.builder.buildBitOr(lhs, rhs);
+			case "^":
+				return this.builder.buildBitXor(lhs, rhs);
+			case "<<":
+				return this.builder.buildShl(lhs, rhs);
+			case ">>":
+				return this.builder.buildShr(lhs, rhs);
+			case ">>>":
+				return this.builder.buildUShr(lhs, rhs);
+			case "instanceof":
+				return this.builder.buildInstanceof(lhs, rhs);
+			case "in":
+				return this.builder.buildIn(lhs, rhs);
 			default:
 				throw new Error(`HyperionCompiler: Unsupported binary operator: ${node.operator}`);
 		}

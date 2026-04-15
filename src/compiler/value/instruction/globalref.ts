@@ -22,3 +22,13 @@ export class ThisInstruction extends Instruction {
 		return `%${this.id} = this`;
 	}
 }
+
+export class ArgumentsInstruction extends Instruction {
+	readonly kind = "Arguments" as const;
+	constructor(id: number) {
+		super(id);
+	}
+	dump(): string {
+		return `%${this.id} = arguments`;
+	}
+}

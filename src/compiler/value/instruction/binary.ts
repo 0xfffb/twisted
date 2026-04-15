@@ -6,11 +6,20 @@ export type BinaryInstructionKind =
 	| "Sub"
 	| "Mul"
 	| "Div"
+	| "Mod"
+	| "BitAnd"
+	| "BitOr"
+	| "BitXor"
+	| "Shl"
+	| "Shr"
+	| "UShr"
 	| "Equal"
 	| "Lt"
 	| "Lte"
 	| "Gt"
-	| "Gte";
+	| "Gte"
+	| "Instanceof"
+	| "In";
 
 export class BinaryInstruction extends Instruction {
 	readonly kind: BinaryInstructionKind;
