@@ -231,9 +231,3 @@ Issues / PR 欢迎。建议：
 1. 新功能或修复请附带或更新 **`npm test`** 能通过的单测。  
 2. 提交信息清晰说明动机与行为变更（中文或英文均可）。  
 3. 大改动请先开 issue 简述方案，避免与维护方向冲突。
-
----
-
-## 致谢
-
-[KProtect](https://github.com/yang-zhongtian/KProtect)（`yang-zhongtian/KProtect`）

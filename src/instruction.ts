@@ -21,21 +21,6 @@ interface Instruction {
 	args: Arg[];
 }
 
-interface BasicBlock {
-	id: number;
-	start: number;
-	end: number;
-	instructions: Instruction[];
-	predecessors: BasicBlock[];
-	successors: BasicBlock[];
-}
-
-interface ControlFlowGraph {
-	entry: number;
-	exit: number;
-	blocks: Map<number, BasicBlock>;
-}
-
 function createInstruction(opcode: Opcode, args: Arg[] | null = null): Instruction {
 	return {
 		opcode,
