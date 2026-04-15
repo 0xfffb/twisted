@@ -1,4 +1,4 @@
-import { HyperionAssembler } from "./assembler/hyperion.js";
+import { HyperionAssembler } from "./assembler/index.js";
 import { HyperionCompiler } from "./compiler/index.js";
 import VM from "./vm/vm.js";
 import { JSDOM } from "jsdom";

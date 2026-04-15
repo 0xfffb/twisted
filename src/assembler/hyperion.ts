@@ -1,101 +1,162 @@
-/**
- * Hyperion JSON IR → 线性 Instruction[] → LinearAssembler 生成 VM bytecode。
- * JSON 格式与 HyperionSerializer 输出一致（kind: Module）。
- */
 import { LabelType, Opcode } from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
-import { Bulldozer } from "../compiler/bulldozer.js";
+import { Bulldozer as CompilerBulldozer } from "../compiler/bulldozer.js";
 import { AssemblerBundle, BaseAssembler } from "./base.js";
-import { LinearAssembler } from "./linear.js";
+import { Bulldozer as AssemblerBulldozer } from "./bulldozer.js";
 
 type Json = Record<string, unknown>;
 
 const DEPS_WINDOW = 0;
 
-function asObj(v: unknown): Json {
-	if (v === null || typeof v !== "object" || Array.isArray(v)) {
-		throw new Error("HyperionAssembler: 期望对象");
-	}
-	return v as Json;
-}
-
-function asStr(v: unknown): string {
-	if (typeof v !== "string") throw new Error("HyperionAssembler: 期望字符串");
-	return v;
-}
-
-function asNum(v: unknown): number {
-	if (typeof v !== "number" || !Number.isFinite(v)) throw new Error("HyperionAssembler: 期望数字");
-	return v;
-}
-
-/** 二元 IR 操作 → Opcode（与 LinearCompiler / VM 约定一致） */
-function binaryKindToOpcode(kind: string): Opcode {
-	switch (kind) {
-		case "Add":
-			return Opcode.Add;
-		case "Sub":
-			return Opcode.Sub;
-		case "Mul":
-			return Opcode.Mul;
-		case "Div":
-			return Opcode.Div;
-		case "Equal":
-			return Opcode.Equal;
-		case "Lt":
-			return Opcode.LessThan;
-		case "Lte":
-			return Opcode.LessThanOrEqual;
-		case "Gt":
-			return Opcode.GreaterThan;
-		case "Gte":
-			return Opcode.GreaterThanOrEqual;
-		case "BitOr":
-			return Opcode.BitOr;
-		case "BitXor":
-			return Opcode.BitXor;
-		case "Shl":
-			return Opcode.ShiftLeft;
-		case "UShr":
-			return Opcode.ShiftRightUnsigned;
-		default:
-			throw new Error(`HyperionAssembler: 暂不支持的 Binary 运算 ${kind}`);
-	}
-}
-
-class HyperionToLinearIr {
-	private readonly module: Json;
+class HyperionAssembler extends BaseAssembler {
+	private module!: Json;
 	private readonly ir: Instruction[] = [];
-	private readonly bulldozer = new Bulldozer();
-	/** `${fnName}::${blockName}` → label id */
+	private readonly bulldozer = new CompilerBulldozer();
+	private readonly bytecodeBulldozer = new AssemblerBulldozer();
+	private readonly constPoolMap = new Map<string, number>();
 	private blockLabelIds = new Map<string, number>();
-	/** 函数入口（首块）label id，供 Call { kind: fn } 与 MakeClosure 使用 */
 	private fnEntryLabelIds = new Map<string, number>();
 	private moduleHaltLabelId!: number;
-	/** 与 SSA reg id 错开，用于 MakeClosure 捕获物化（const/arg 等） */
 	private nextCaptureTempSlot = 1_000_000;
 
-	constructor(module: Json) {
-		this.module = module;
+	constructor() {
+		super();
+	}
+
+	assemble(input: string | object): AssemblerBundle {
+		this.module = typeof input === "string" ? (JSON.parse(input) as Json) : (input as Json);
+		this.resetState();
+		const ir = this.run();
+		ir.forEach((instruction, index) => {
+			this.bytecodeBulldozer.mark(index, this.bytecode.length);
+			this.pushBytecodeInstruction(instruction);
+		});
+		this.bytecodeBulldozer.backpatch(this.bytecode, ir);
+		return {
+			bytecode: this.bytecode,
+			meta: this.meta,
+		};
+	}
+
+	private resetState(): void {
+		this.ir.length = 0;
+		this.bytecode.length = 0;
+		this.meta.length = 0;
+		this.constPoolMap.clear();
+		this.blockLabelIds.clear();
+		this.fnEntryLabelIds.clear();
+		this.nextCaptureTempSlot = 1_000_000;
+	}
+
+	private pushBytecodeInstruction(instruction: Instruction): void {
+		let opcode = instruction.opcode;
+		if (instruction.opcode === Opcode.Push && instruction.args.length === 1) {
+			const [arg] = instruction.args;
+			if (arg.kind === ArgKind.String) {
+				opcode = Opcode.LoadMeta;
+			}
+		}
+
+		this.bytecode.push(opcode);
+		instruction.args.forEach((arg) => {
+			switch (arg.kind) {
+				case ArgKind.Number:
+				case ArgKind.Dependency:
+				case ArgKind.Parameter:
+				case ArgKind.Variable:
+				case ArgKind.DynAddr:
+					this.bytecode.push(arg.value);
+					break;
+				case ArgKind.String:
+				case ArgKind.Property:
+					this.bytecode.push(this.getMetaIndex(arg.value));
+					break;
+				case ArgKind.Undefined:
+					throw new Error(`Undefined arg kind: ${arg.kind}`);
+				default:
+					throw new Error(`Unknown arg kind: ${arg.kind}`);
+			}
+		});
+	}
+
+	private getMetaIndex(value: string): number {
+		const index = this.constPoolMap.get(value);
+		if (index !== undefined) {
+			return index;
+		}
+		const nextIndex = this.meta.length;
+		this.meta.push(value);
+		this.constPoolMap.set(value, nextIndex);
+		return nextIndex;
+	}
+
+	private asObj(v: unknown): Json {
+		if (v === null || typeof v !== "object" || Array.isArray(v)) {
+			throw new Error("HyperionAssembler: 期望对象");
+		}
+		return v as Json;
+	}
+
+	private asStr(v: unknown): string {
+		if (typeof v !== "string") throw new Error("HyperionAssembler: 期望字符串");
+		return v;
+	}
+
+	private asNum(v: unknown): number {
+		if (typeof v !== "number" || !Number.isFinite(v)) {
+			throw new Error("HyperionAssembler: 期望数字");
+		}
+		return v;
+	}
+
+	private binaryKindToOpcode(kind: string): Opcode {
+		switch (kind) {
+			case "Add":
+				return Opcode.Add;
+			case "Sub":
+				return Opcode.Sub;
+			case "Mul":
+				return Opcode.Mul;
+			case "Div":
+				return Opcode.Div;
+			case "Equal":
+				return Opcode.Equal;
+			case "Lt":
+				return Opcode.LessThan;
+			case "Lte":
+				return Opcode.LessThanOrEqual;
+			case "Gt":
+				return Opcode.GreaterThan;
+			case "Gte":
+				return Opcode.GreaterThanOrEqual;
+			case "BitOr":
+				return Opcode.BitOr;
+			case "BitXor":
+				return Opcode.BitXor;
+			case "Shl":
+				return Opcode.ShiftLeft;
+			case "UShr":
+				return Opcode.ShiftRightUnsigned;
+			default:
+				throw new Error(`HyperionAssembler: 暂不支持的 Binary 运算 ${kind}`);
+		}
 	}
 
 	private allocCaptureTempSlot(): number {
 		return this.nextCaptureTempSlot++;
 	}
 
-	/**
-	 * MakeClosure 运行时只认 Variable 槽。序列化捕获可能是 reg / const / arg 等，
-	 * 非常量槽先求值再 Store 到临时槽。
-	 */
 	private materializeCaptureToSlot(v: unknown): number {
-		const o = asObj(v);
-		const k = asStr(o.kind);
+		const o = this.asObj(v);
+		const k = this.asStr(o.kind);
 		if (k === "reg") {
-			return asNum(o.id);
+			return this.asNum(o.id);
 		}
 		const tmp = this.allocCaptureTempSlot();
 		if (k === "arg") {
-			this.pushIr(createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, asNum(o.index))]));
+			this.pushIr(
+				createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, this.asNum(o.index))]),
+			);
 			this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, tmp)]));
 			return tmp;
 		}
@@ -120,8 +181,8 @@ class HyperionToLinearIr {
 		return tmp;
 	}
 
-	run(): Instruction[] {
-		if (asStr(this.module.kind) !== "Module") {
+	private run(): Instruction[] {
+		if (this.asStr(this.module.kind) !== "Module") {
 			throw new Error('HyperionAssembler: 根节点须为 kind: "Module"');
 		}
 		const functions = this.module.functions;
@@ -129,8 +190,8 @@ class HyperionToLinearIr {
 			throw new Error("HyperionAssembler: Module.functions 不能为空");
 		}
 
-		const main = functions.find((f) => asObj(f).name === "__main__");
-		const rest = functions.filter((f) => asObj(f).name !== "__main__");
+		const main = functions.find((f) => this.asObj(f).name === "__main__");
+		const rest = functions.filter((f) => this.asObj(f).name !== "__main__");
 		const ordered = main ? [main, ...rest] : [...functions];
 
 		const haltLab = this.bulldozer.label(undefined, LabelType.FUNCTION_END);
@@ -139,7 +200,7 @@ class HyperionToLinearIr {
 		this.preRegisterLabels(ordered);
 
 		for (const fnJson of ordered) {
-			this.emitFunction(asObj(fnJson));
+			this.emitFunction(this.asObj(fnJson));
 		}
 
 		this.pushIr(createInstruction(Opcode.Halt, []));
@@ -151,19 +212,19 @@ class HyperionToLinearIr {
 
 	private preRegisterLabels(functions: unknown[]): void {
 		for (const f of functions) {
-			const fn = asObj(f);
-			const fnName = asStr(fn.name);
+			const fn = this.asObj(f);
+			const fnName = this.asStr(fn.name);
 			const blocks = fn.blocks;
 			if (!Array.isArray(blocks) || blocks.length === 0) {
 				throw new Error(`HyperionAssembler: 函数 ${fnName} 无基本块`);
 			}
 			for (const b of blocks) {
-				const block = asObj(b);
-				const key = this.blockKey(fnName, asStr(block.name));
+				const block = this.asObj(b);
+				const key = this.blockKey(fnName, this.asStr(block.name));
 				const lab = this.bulldozer.label(`${fnName}_${block.name}`, LabelType.IF_END);
 				this.blockLabelIds.set(key, lab.id);
 			}
-			const entryKey = this.blockKey(fnName, asStr(asObj(blocks[0]).name));
+			const entryKey = this.blockKey(fnName, this.asStr(this.asObj(blocks[0]).name));
 			const entryId = this.blockLabelIds.get(entryKey);
 			if (entryId === undefined) throw new Error(`HyperionAssembler: 未登记入口块 ${fnName}`);
 			this.fnEntryLabelIds.set(fnName, entryId);
@@ -179,10 +240,8 @@ class HyperionToLinearIr {
 	}
 
 	private emitFunction(fn: Json): void {
-		const fnName = asStr(fn.name);
-		const blocks = fn.blocks as unknown[];
+		const fnName = this.asStr(fn.name);
 		const orderedBlocks = this.orderBlocks(fn);
-
 		const fnEndLab = this.bulldozer.label(undefined, LabelType.FUNCTION_END);
 
 		if (fnName !== "__main__") {
@@ -193,7 +252,7 @@ class HyperionToLinearIr {
 		}
 
 		for (const block of orderedBlocks) {
-			this.emitBlock(fnName, asObj(block));
+			this.emitBlock(fnName, this.asObj(block));
 		}
 
 		if (fnName !== "__main__") {
@@ -201,25 +260,24 @@ class HyperionToLinearIr {
 		}
 	}
 
-	/** 从入口块出发 DFS，未连通的块追加在后，避免漏块 */
 	private orderBlocks(fn: Json): Json[] {
-		const fnName = asStr(fn.name);
+		const fnName = this.asStr(fn.name);
 		const blocks = fn.blocks as Json[];
 		const byName = new Map<string, Json>();
 		for (const b of blocks) {
-			const bb = asObj(b);
-			byName.set(asStr(bb.name), bb);
+			const bb = this.asObj(b);
+			byName.set(this.asStr(bb.name), bb);
 		}
-		const entryName = asStr(asObj(blocks[0]).name);
+		const entryName = this.asStr(this.asObj(blocks[0]).name);
 		const out: Json[] = [];
 		const seen = new Set<string>();
 
 		const succ = (b: Json): string[] => {
 			const t = b.terminator as Json | null | undefined;
 			if (!t || typeof t !== "object") return [];
-			const k = asStr((t as Json).kind);
-			if (k === "Branch") return [asStr(t.ifTrue), asStr(t.ifFalse)];
-			if (k === "Jmp") return [asStr(t.dest)];
+			const k = this.asStr((t as Json).kind);
+			if (k === "Branch") return [this.asStr(t.ifTrue), this.asStr(t.ifFalse)];
+			if (k === "Jmp") return [this.asStr(t.dest)];
 			return [];
 		};
 
@@ -234,14 +292,14 @@ class HyperionToLinearIr {
 
 		visit(entryName);
 		for (const b of blocks) {
-			const nm = asStr(asObj(b).name);
+			const nm = this.asStr(this.asObj(b).name);
 			if (!seen.has(nm)) visit(nm);
 		}
 		return out;
 	}
 
 	private emitBlock(fnName: string, block: Json): void {
-		const blockName = asStr(block.name);
+		const blockName = this.asStr(block.name);
 		const key = this.blockKey(fnName, blockName);
 		const labelId = this.blockLabelIds.get(key);
 		if (labelId === undefined) throw new Error(`HyperionAssembler: 未登记块标签 ${key}`);
@@ -250,53 +308,50 @@ class HyperionToLinearIr {
 		const instructions = block.instructions;
 		if (Array.isArray(instructions)) {
 			for (const raw of instructions) {
-				const ins = asObj(raw);
-				if (asStr(ins.kind) === "Phi") continue;
+				const ins = this.asObj(raw);
+				if (this.asStr(ins.kind) === "Phi") continue;
 				this.emitSsaInstruction(fnName, ins);
 			}
 		}
 
 		const term = block.terminator;
 		if (term !== undefined && term !== null) {
-			this.emitTerminator(fnName, blockName, asObj(term));
+			this.emitTerminator(fnName, blockName, this.asObj(term));
 		}
 	}
 
 	private emitPhiCopies(fromBlockName: string, toBlockName: string, fn: Json): void {
-		const fnName = asStr(fn.name);
 		const blocks = fn.blocks as Json[];
-		const target = blocks.map(asObj).find((b) => asStr(b.name) === toBlockName);
+		const target = blocks.map((b) => this.asObj(b)).find((b) => this.asStr(b.name) === toBlockName);
 		if (!target) return;
 		const instrs = target.instructions;
 		if (!Array.isArray(instrs)) return;
 		for (const raw of instrs) {
-			const ins = asObj(raw);
-			if (asStr(ins.kind) !== "Phi") continue;
+			const ins = this.asObj(raw);
+			if (this.asStr(ins.kind) !== "Phi") continue;
 			const incoming = ins.incoming as unknown[];
 			if (!Array.isArray(incoming)) continue;
 			for (const edge of incoming) {
-				const e = asObj(edge);
-				if (asStr(e.block) !== fromBlockName) continue;
+				const e = this.asObj(edge);
+				if (this.asStr(e.block) !== fromBlockName) continue;
 				this.emitValue(e.value);
 				this.pushIr(
-					createInstruction(Opcode.Store, [createArg(ArgKind.Variable, asNum(ins.id))]),
+					createInstruction(Opcode.Store, [createArg(ArgKind.Variable, this.asNum(ins.id))]),
 				);
 			}
 		}
 	}
 
 	private emitTerminator(fnName: string, currentBlockName: string, t: Json): void {
-		const kind = asStr(t.kind);
+		const kind = this.asStr(t.kind);
 		const isMain = fnName === "__main__";
 
 		if (kind === "Branch") {
-			const cond = t.cond;
-			this.emitValue(cond);
-			const ifTrueName = asStr(t.ifTrue);
-			const ifFalseName = asStr(t.ifFalse);
-
-			const LTrue = this.bulldozer.label(undefined, LabelType.IF_THEN);
-			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, LTrue.id)]));
+			this.emitValue(t.cond);
+			const ifTrueName = this.asStr(t.ifTrue);
+			const ifFalseName = this.asStr(t.ifFalse);
+			const lTrue = this.bulldozer.label(undefined, LabelType.IF_THEN);
+			this.pushIr(createInstruction(Opcode.JmpIf, [createArg(ArgKind.DynAddr, lTrue.id)]));
 
 			this.emitPhiCopies(currentBlockName, ifFalseName, this.getFnJson(fnName));
 			this.pushIr(
@@ -305,7 +360,7 @@ class HyperionToLinearIr {
 				]),
 			);
 
-			this.bulldozer.record(LTrue.id, this.ir.length);
+			this.bulldozer.record(lTrue.id, this.ir.length);
 			this.emitPhiCopies(currentBlockName, ifTrueName, this.getFnJson(fnName));
 			this.pushIr(
 				createInstruction(Opcode.Jmp, [
@@ -316,7 +371,7 @@ class HyperionToLinearIr {
 		}
 
 		if (kind === "Jmp") {
-			const dest = asStr(t.dest);
+			const dest = this.asStr(t.dest);
 			this.emitPhiCopies(currentBlockName, dest, this.getFnJson(fnName));
 			this.pushIr(
 				createInstruction(Opcode.Jmp, [
@@ -329,7 +384,9 @@ class HyperionToLinearIr {
 		if (kind === "Return") {
 			this.emitValue(t.value);
 			if (isMain) {
-				this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, this.moduleHaltLabelId)]));
+				this.pushIr(
+					createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, this.moduleHaltLabelId)]),
+				);
 			} else {
 				this.pushIr(createInstruction(Opcode.PopFrame, []));
 			}
@@ -337,7 +394,9 @@ class HyperionToLinearIr {
 		}
 
 		if (kind === "Unreachable") {
-			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, this.moduleHaltLabelId)]));
+			this.pushIr(
+				createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, this.moduleHaltLabelId)]),
+			);
 			return;
 		}
 
@@ -346,26 +405,26 @@ class HyperionToLinearIr {
 
 	private getFnJson(fnName: string): Json {
 		const functions = this.module.functions as unknown[];
-		const f = functions.map(asObj).find((x) => asStr(x.name) === fnName);
+		const f = functions.map((x) => this.asObj(x)).find((x) => this.asStr(x.name) === fnName);
 		if (!f) throw new Error(`HyperionAssembler: 未找到函数 ${fnName}`);
 		return f;
 	}
 
 	private emitSsaInstruction(fnName: string, ins: Json): void {
-		const kind = asStr(ins.kind);
-		const id = asNum(ins.id);
+		const kind = this.asStr(ins.kind);
+		const id = this.asNum(ins.id);
 
 		switch (kind) {
 			case "Binary": {
-				const op = asStr(ins.op);
+				const op = this.asStr(ins.op);
 				this.emitValue(ins.lhs);
 				this.emitValue(ins.rhs);
-				this.pushIr(createInstruction(binaryKindToOpcode(op), []));
+				this.pushIr(createInstruction(this.binaryKindToOpcode(op), []));
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
 			case "Unary": {
-				const op = asStr(ins.op);
+				const op = this.asStr(ins.op);
 				const operand = ins.operand;
 				if (op === "!") {
 					this.emitValue(operand);
@@ -381,28 +440,32 @@ class HyperionToLinearIr {
 				break;
 			}
 			case "Load": {
-				const slot = asNum(ins.slot);
+				const slot = this.asNum(ins.slot);
 				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, slot)]));
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
 			case "Store": {
 				this.emitValue(ins.value);
-				const slot = asNum(ins.slot);
+				const slot = this.asNum(ins.slot);
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, slot)]));
 				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, slot)]));
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
 			case "GlobalRef": {
-				const name = asStr(ins.name);
-				this.pushIr(createInstruction(Opcode.Dependency, [createArg(ArgKind.Dependency, DEPS_WINDOW)]));
+				const name = this.asStr(ins.name);
+				this.pushIr(
+					createInstruction(Opcode.Dependency, [createArg(ArgKind.Dependency, DEPS_WINDOW)]),
+				);
 				this.pushIr(createInstruction(Opcode.Property, [createArg(ArgKind.Property, name)]));
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
 			case "This": {
-				this.pushIr(createInstruction(Opcode.Dependency, [createArg(ArgKind.Dependency, DEPS_WINDOW)]));
+				this.pushIr(
+					createInstruction(Opcode.Dependency, [createArg(ArgKind.Dependency, DEPS_WINDOW)]),
+				);
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
@@ -437,9 +500,9 @@ class HyperionToLinearIr {
 				const props = ins.props as unknown[];
 				if (!Array.isArray(props)) throw new Error("HyperionAssembler: Object.props 须为数组");
 				for (const p of props) {
-					const prop = asObj(p);
+					const prop = this.asObj(p);
 					this.pushIr(
-						createInstruction(Opcode.Push, [createArg(ArgKind.String, asStr(prop.key))]),
+						createInstruction(Opcode.Push, [createArg(ArgKind.String, this.asStr(prop.key))]),
 					);
 					this.emitValue(prop.value);
 				}
@@ -451,7 +514,9 @@ class HyperionToLinearIr {
 			}
 			case "GetProp": {
 				this.emitValue(ins.obj);
-				this.pushIr(createInstruction(Opcode.Property, [createArg(ArgKind.Property, asStr(ins.key))]));
+				this.pushIr(
+					createInstruction(Opcode.Property, [createArg(ArgKind.Property, this.asStr(ins.key))]),
+				);
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
@@ -465,7 +530,11 @@ class HyperionToLinearIr {
 			case "SetProp": {
 				this.emitValue(ins.obj);
 				this.emitValue(ins.value);
-				this.pushIr(createInstruction(Opcode.SetProperty, [createArg(ArgKind.Property, asStr(ins.key))]));
+				this.pushIr(
+					createInstruction(Opcode.SetProperty, [
+						createArg(ArgKind.Property, this.asStr(ins.key)),
+					]),
+				);
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
@@ -478,10 +547,11 @@ class HyperionToLinearIr {
 				break;
 			}
 			case "MakeClosure": {
-				const fnRef = ins.fn;
 				const captures = ins.captures as unknown[];
-				if (!Array.isArray(captures)) throw new Error("HyperionAssembler: MakeClosure.captures 须为数组");
-				const entryId = this.resolveFnEntryLabel(fnRef);
+				if (!Array.isArray(captures)) {
+					throw new Error("HyperionAssembler: MakeClosure.captures 须为数组");
+				}
+				const entryId = this.resolveFnEntryLabel(ins.fn);
 				const slots = captures.map((c) => this.materializeCaptureToSlot(c));
 				this.pushIr(
 					createInstruction(Opcode.MakeClosure, [
@@ -494,7 +564,9 @@ class HyperionToLinearIr {
 				break;
 			}
 			case "LoadCapture": {
-				this.pushIr(createInstruction(Opcode.LoadCapture, [createArg(ArgKind.Number, asNum(ins.index))]));
+				this.pushIr(
+					createInstruction(Opcode.LoadCapture, [createArg(ArgKind.Number, this.asNum(ins.index))]),
+				);
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
@@ -504,9 +576,11 @@ class HyperionToLinearIr {
 	}
 
 	private resolveFnEntryLabel(fnRef: unknown): number {
-		const v = asObj(fnRef);
-		if (asStr(v.kind) !== "fn") throw new Error("HyperionAssembler: MakeClosure.fn 须为 { kind: fn, name }");
-		const name = asStr(v.name);
+		const v = this.asObj(fnRef);
+		if (this.asStr(v.kind) !== "fn") {
+			throw new Error("HyperionAssembler: MakeClosure.fn 须为 { kind: fn, name }");
+		}
+		const name = this.asStr(v.name);
 		const lid = this.fnEntryLabelIds.get(name);
 		if (lid === undefined) throw new Error(`HyperionAssembler: 未找到函数 ${name} 的入口标签`);
 		return lid;
@@ -518,18 +592,17 @@ class HyperionToLinearIr {
 		for (const a of args) this.emitValue(a);
 		this.pushIr(createInstruction(Opcode.BuildArray, [createArg(ArgKind.Number, args.length)]));
 
-		const callee = ins.callee;
-		const cv = asObj(callee);
-		const ck = asStr(cv.kind);
+		const cv = this.asObj(ins.callee);
+		const ck = this.asStr(cv.kind);
 		if (ck === "fn") {
-			const name = asStr(cv.name);
+			const name = this.asStr(cv.name);
 			const entryId = this.fnEntryLabelIds.get(name);
 			if (entryId === undefined) throw new Error(`HyperionAssembler: 调用未定义函数 ${name}`);
 			this.pushIr(createInstruction(Opcode.PushFrame, []));
 			this.pushIr(createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, entryId)]));
 			return;
 		}
-		this.emitValue(callee);
+		this.emitValue(ins.callee);
 		this.pushIr(createInstruction(Opcode.InvokeValue, []));
 	}
 
@@ -553,8 +626,8 @@ class HyperionToLinearIr {
 		if (Array.isArray(v)) {
 			throw new Error("HyperionAssembler: 非法 JSON 值（数组）");
 		}
-		const o = asObj(v);
-		const kind = asStr(o.kind);
+		const o = this.asObj(v);
+		const kind = this.asStr(o.kind);
 		switch (kind) {
 			case "const": {
 				const lit = o.value;
@@ -572,22 +645,21 @@ class HyperionToLinearIr {
 				break;
 			}
 			case "arg": {
-				const idx = asNum(o.index);
+				const idx = this.asNum(o.index);
 				this.pushIr(createInstruction(Opcode.LoadParameter, [createArg(ArgKind.Number, idx)]));
 				break;
 			}
 			case "reg": {
-				const rid = asNum(o.id);
+				const rid = this.asNum(o.id);
 				this.pushIr(createInstruction(Opcode.Load, [createArg(ArgKind.Variable, rid)]));
 				break;
 			}
 			case "fn": {
-				const name = asStr(o.name);
+				const name = this.asStr(o.name);
 				const entryId = this.fnEntryLabelIds.get(name);
 				if (entryId === undefined) {
 					throw new Error(`HyperionAssembler: 未登记函数入口 ${name}（无法将 { kind: fn } 变为闭包值）`);
 				}
-				// 模块内具名函数作为值：与无捕获 MakeClosure 一致，供 InvokeValue / 传参等使用
 				this.pushIr(
 					createInstruction(Opcode.MakeClosure, [
 						createArg(ArgKind.DynAddr, entryId),
@@ -602,19 +674,6 @@ class HyperionToLinearIr {
 			default:
 				throw new Error(`HyperionAssembler: 不支持的 Value kind=${kind}`);
 		}
-	}
-}
-
-class HyperionAssembler extends BaseAssembler {
-	constructor() {
-		super();
-	}
-
-	assemble(input: string | object): AssemblerBundle {
-		const json = typeof input === "string" ? (JSON.parse(input) as Json) : (input as Json);
-		const lower = new HyperionToLinearIr(json);
-		const ir = lower.run();
-		return new LinearAssembler().assemble(ir);
 	}
 }
 
