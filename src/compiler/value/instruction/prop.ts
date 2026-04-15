@@ -61,16 +61,28 @@ export class SetElemInstruction extends Instruction {
 
 export class DeletePropInstruction extends Instruction {
 	readonly kind = "DeleteProp" as const;
-	constructor(id: number, public readonly obj: Value, public readonly key: string) {
+	constructor(
+		id: number,
+		public readonly obj: Value,
+		public readonly key: string,
+	) {
 		super(id);
 	}
-	dump(): string { return `%${this.id} = delete_prop ${this.obj}, "${this.key}"`; }
+	dump(): string {
+		return `%${this.id} = delete_prop ${this.obj}, "${this.key}"`;
+	}
 }
 
 export class DeleteElemInstruction extends Instruction {
 	readonly kind = "DeleteElem" as const;
-	constructor(id: number, public readonly obj: Value, public readonly key: Value) {
+	constructor(
+		id: number,
+		public readonly obj: Value,
+		public readonly key: Value,
+	) {
 		super(id);
 	}
-	dump(): string { return `%${this.id} = delete_elem ${this.obj}, ${this.key}`; }
+	dump(): string {
+		return `%${this.id} = delete_elem ${this.obj}, ${this.key}`;
+	}
 }

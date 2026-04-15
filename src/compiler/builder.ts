@@ -98,19 +98,45 @@ class IRBuilder {
 	buildEqual(lhs: Value, rhs: Value): BinaryInstruction {
 		return this.buildBinary("Equal", lhs, rhs);
 	}
-	buildLt(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Lt", lhs, rhs); }
-	buildLte(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Lte", lhs, rhs); }
-	buildGt(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Gt", lhs, rhs); }
-	buildGte(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Gte", lhs, rhs); }
-	buildMod(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Mod", lhs, rhs); }
-	buildBitAnd(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("BitAnd", lhs, rhs); }
-	buildBitOr(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("BitOr", lhs, rhs); }
-	buildBitXor(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("BitXor", lhs, rhs); }
-	buildShl(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Shl", lhs, rhs); }
-	buildShr(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Shr", lhs, rhs); }
-	buildUShr(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("UShr", lhs, rhs); }
-	buildInstanceof(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("Instanceof", lhs, rhs); }
-	buildIn(lhs: Value, rhs: Value): BinaryInstruction { return this.buildBinary("In", lhs, rhs); }
+	buildLt(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Lt", lhs, rhs);
+	}
+	buildLte(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Lte", lhs, rhs);
+	}
+	buildGt(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Gt", lhs, rhs);
+	}
+	buildGte(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Gte", lhs, rhs);
+	}
+	buildMod(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Mod", lhs, rhs);
+	}
+	buildBitAnd(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("BitAnd", lhs, rhs);
+	}
+	buildBitOr(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("BitOr", lhs, rhs);
+	}
+	buildBitXor(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("BitXor", lhs, rhs);
+	}
+	buildShl(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Shl", lhs, rhs);
+	}
+	buildShr(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Shr", lhs, rhs);
+	}
+	buildUShr(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("UShr", lhs, rhs);
+	}
+	buildInstanceof(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("Instanceof", lhs, rhs);
+	}
+	buildIn(lhs: Value, rhs: Value): BinaryInstruction {
+		return this.buildBinary("In", lhs, rhs);
+	}
 
 	buildLoad(slot: number): LoadInstruction {
 		const { fn, block } = this.insertPoint();

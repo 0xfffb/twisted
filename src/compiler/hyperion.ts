@@ -246,9 +246,9 @@ class HyperionCompiler extends BaseCompiler {
 		const fn = this.builder.currentFn!;
 		const id = fn.blockCount;
 
-		const tryBlock   = fn.createBlock(`try_body.${id}`);
+		const tryBlock = fn.createBlock(`try_body.${id}`);
 		const afterBlock = fn.createBlock(`after.${id}`);
-		const catchBlock = node.handler   ? fn.createBlock(`catch.${id}`)   : null;
+		const catchBlock = node.handler ? fn.createBlock(`catch.${id}`) : null;
 		const finallyBlock = node.finalizer ? fn.createBlock(`finally.${id}`) : null;
 		const landingTarget = catchBlock ?? finallyBlock ?? afterBlock;
 
@@ -632,12 +632,18 @@ class HyperionCompiler extends BaseCompiler {
 		}
 		const operand = this.compileExpression(node.argument as Expression, scope);
 		switch (node.operator) {
-			case "!": return this.builder.buildNot(operand);
-			case "-": return this.builder.buildNeg(operand);
-			case "~": return this.builder.buildUnary("~", operand);
-			case "+": return this.builder.buildUnary("+", operand);
-			case "typeof": return this.builder.buildTypeof(operand);
-			case "void": return this.builder.buildVoid(operand);
+			case "!":
+				return this.builder.buildNot(operand);
+			case "-":
+				return this.builder.buildNeg(operand);
+			case "~":
+				return this.builder.buildUnary("~", operand);
+			case "+":
+				return this.builder.buildUnary("+", operand);
+			case "typeof":
+				return this.builder.buildTypeof(operand);
+			case "void":
+				return this.builder.buildVoid(operand);
 			default:
 				throw new Error(`Unsupported unary operator: ${node.operator}`);
 		}
