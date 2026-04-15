@@ -1,4 +1,4 @@
-import Compiler from "./compiler/compiler.js";
+import { LinearIRCompiler } from "./compiler/compiler.js";
 import Assembler from "./assembler/assembler.js";
 import VM from "./vm/vm.js";
 import { JSDOM } from "jsdom";
@@ -26,7 +26,7 @@ console.log(c);
 
 if (!window.tws) { console.log("hit"); } else { console.log("miss"); }
     `;
-	const compiler = new Compiler(code);
+	const compiler = new LinearIRCompiler(code);
 	const ir = compiler.compile();
 
 	const passes = [new ArithmeticDeformationPass()];

@@ -35,26 +35,24 @@ import {
 import { LabelType, Opcode } from "../constant.js";
 import { ArgKind, createArg, createInstruction, type Instruction } from "../instruction.js";
 import Context from "./context/context.js";
-import { Bulldozer, Label } from "./bulldozer.js";
-import ExceptionTable from "./exception.js";
+import { Bulldozer } from "./bulldozer.js";
+import { BaseCompiler } from "./base.js";
 
-class Compiler {
+class LinearIRCompiler extends BaseCompiler {
 	private program: Program;
 	public ir: Instruction[];
 	private context: Context;
 	private dependencies: string[];
 	private bulldozer: Bulldozer;
-	private exceptionTable: ExceptionTable;
-	/** 编译函数表达式时记录待捕获的外层槽位；null 表示不在函数表达式上下文中 */
 	private closureCaptures: number[] | null = null;
 
 	constructor(source: string) {
+		super(source);
 		this.program = parser.parse(source, { sourceType: "module" }).program;
 		this.ir = [];
 		this.context = new Context();
 		this.dependencies = ["window", "console"];
 		this.bulldozer = new Bulldozer();
-		this.exceptionTable = new ExceptionTable();
 	}
 
 	compile(): Instruction[] {
@@ -907,4 +905,4 @@ class Compiler {
 	}
 }
 
-export default Compiler;
+export { LinearIRCompiler };

@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import Compiler from "../compiler/compiler.js";
+import { LinearIRCompiler } from "../compiler/compiler.js";
 import Assembler from "../assembler/assembler.js";
 import { dirname } from "node:path";
 import Obfuscator from "../obfuscator/obfuscator.js";
@@ -19,7 +19,7 @@ async function buildBundle(
 	options: BundleBuildOptions = {},
 ): Promise<Bundle> {
 	const source = await readFile(inputPath, "utf-8");
-	const compiler = new Compiler(source);
+	const compiler = new LinearIRCompiler(source);
 	let ir = compiler.compile();
 	if (options.obfuscate) {
 		const obfuscator = new Obfuscator([new ArithmeticDeformationPass()]);
