@@ -232,6 +232,9 @@ class HyperionCompiler extends BaseCompiler {
 		this.builder.setInsertPoint(fn, fn.entry);
 
 		const fnScope = new SSAScope();
+		for (const [name, val] of scope.snapshot()) {
+			if ((val as any).kind === "Function") fnScope.define(name, val);
+		}
 		for (const param of fn.params) fnScope.define(param.name, param);
 
 		this.compileBlockStatement(body, fnScope);

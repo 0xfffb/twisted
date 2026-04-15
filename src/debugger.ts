@@ -2,10 +2,36 @@ import { HyperionCompiler } from "./compiler/index.js";
 
 async function main() {
 	const code = `
-var x = 10;
-var label = x > 5 ? "big" : "small";
-var nested = x > 10 ? "a" : x > 5 ? "b" : "c";
-var y = x > 0 ? x * 2 : -x;
+
+function getSign() {
+    return "1234567890";
+}
+
+function hookFetch() {
+    const nativeFetch = window.fetch;
+    window.Object.defineProperty(window.window, "fetch", {
+      value: function(url, options) {
+          if (!options) {
+            options = {};
+          }
+          let headers = options.headers;
+          if (!headers) {
+            headers = {};
+          }
+          headers["X-Twisted-Sign"] = getSign();
+          options.headers = headers;
+          return nativeFetch(url, options);
+      }
+    });
+
+    window.Object.defineProperty(window.fetch, "toString", {
+      value: function() {
+        return "function fetch() { [native code] }"
+      }
+    });
+}
+
+hookFetch();
 	`;
 	const compiler = new HyperionCompiler(code);
 	const module = compiler.compile();
