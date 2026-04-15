@@ -21,6 +21,7 @@
     "build:runtime": "npm run cli -- runtime dist/browser/bundle.json dist/browser/runtime.js",
     "build:all": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js --obfuscate",
     "build:all:plain": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js",
+    "dump": "npm run cli -- dump example/fingerprint.js dist/browser",
     "format": "prettier --write \"src/**/*.{js,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\""
   },
