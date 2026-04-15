@@ -12,4 +12,5 @@ export * from "./new.js";
 export * from "./globalref.js";
 export * from "./forin.js";
 export * from "./prop.js";
+export * from "./closure.js";
 export * from "./terminator/index.js";

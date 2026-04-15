@@ -27,6 +27,8 @@ import {
 	SetElemInstruction,
 	DeletePropInstruction,
 	DeleteElemInstruction,
+	MakeClosureInstruction,
+	LoadCaptureInstruction,
 	BranchTerminator,
 	JmpTerminator,
 	ReturnTerminator,
@@ -274,6 +276,20 @@ class IRBuilder {
 	buildDeleteProp(obj: Value, key: string): DeletePropInstruction {
 		const { fn, block } = this.insertPoint();
 		const instr = new DeletePropInstruction(fn.allocReg(), obj, key);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildMakeClosure(fn: Value, captures: Value[]): MakeClosureInstruction {
+		const { fn: irFn, block } = this.insertPoint();
+		const instr = new MakeClosureInstruction(irFn.allocReg(), fn, captures);
+		block.emit(instr);
+		return instr;
+	}
+
+	buildLoadCapture(index: number): LoadCaptureInstruction {
+		const { fn, block } = this.insertPoint();
+		const instr = new LoadCaptureInstruction(fn.allocReg(), index);
 		block.emit(instr);
 		return instr;
 	}

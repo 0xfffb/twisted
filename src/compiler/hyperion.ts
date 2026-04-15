@@ -225,6 +225,15 @@ class HyperionCompiler extends BaseCompiler {
 		scope: SSAScope,
 	): Value {
 		const paramNames = params.map((p) => p.name);
+
+		const locals = new Set<string>(paramNames);
+		this.gatherVarDecls(body.body, locals);
+		const freeRefs = new Set<string>();
+		this.gatherRefs(body, locals, freeRefs);
+		const captures = [...freeRefs]
+			.filter((n) => scope.has(n))
+			.map((n) => ({ name: n, val: scope.lookup(n) }));
+
 		const prevFn = this.builder.currentFn;
 		const prevBlock = this.builder.currentBlock;
 
@@ -232,8 +241,11 @@ class HyperionCompiler extends BaseCompiler {
 		this.builder.setInsertPoint(fn, fn.entry);
 
 		const fnScope = new SSAScope();
-		for (const [name, val] of scope.snapshot()) {
-			if ((val as any).kind === "Function") fnScope.define(name, val);
+		for (const [n, v] of scope.snapshot()) {
+			if ((v as any).kind === "Function") fnScope.define(n, v);
+		}
+		for (let i = 0; i < captures.length; i++) {
+			fnScope.define(captures[i].name, this.builder.buildLoadCapture(i));
 		}
 		for (const param of fn.params) fnScope.define(param.name, param);
 
@@ -242,7 +254,71 @@ class HyperionCompiler extends BaseCompiler {
 		if (!this.builder.currentBlock!.terminator) this.builder.buildReturn(new ConstValue(null));
 		if (prevFn && prevBlock) this.builder.setInsertPoint(prevFn, prevBlock);
 
-		return fn;
+		if (captures.length === 0) return fn;
+		return this.builder.buildMakeClosure(fn, captures.map((c) => c.val));
+	}
+
+	// ── escape analysis helpers ──────────────────────────────────────────────
+
+	private gatherVarDecls(stmts: any[], into: Set<string>): void {
+		for (const stmt of stmts) {
+			if (!stmt) continue;
+			if (stmt.type === "VariableDeclaration") {
+				for (const d of stmt.declarations)
+					if (d.id?.type === "Identifier") into.add(d.id.name);
+			} else if (stmt.type === "FunctionDeclaration" && stmt.id) {
+				into.add(stmt.id.name);
+			} else {
+				// recurse into blocks but not nested function bodies
+				for (const key of ["body", "consequent", "alternate"]) {
+					const child = stmt[key];
+					if (!child) continue;
+					const arr = child.type === "BlockStatement" ? child.body : [child];
+					this.gatherVarDecls(arr, into);
+				}
+			}
+		}
+	}
+
+	private gatherRefs(node: any, skip: Set<string>, refs: Set<string>): void {
+		if (!node || typeof node !== "object") return;
+		if (Array.isArray(node)) { node.forEach((n) => this.gatherRefs(n, skip, refs)); return; }
+
+		const SKIP_KEYS = new Set(["type", "loc", "start", "end", "extra"]);
+
+		switch (node.type) {
+			case "Identifier":
+				if (!skip.has(node.name)) refs.add(node.name);
+				break;
+			case "FunctionDeclaration":
+			case "FunctionExpression": {
+				const inner = new Set(skip);
+				if (node.id) inner.add(node.id.name);
+				for (const p of node.params ?? []) if (p.type === "Identifier") inner.add(p.name);
+				this.gatherVarDecls(node.body?.body ?? [], inner);
+				this.gatherRefs(node.body, inner, refs);
+				break;
+			}
+			case "MemberExpression":
+				this.gatherRefs(node.object, skip, refs);
+				if (node.computed) this.gatherRefs(node.property, skip, refs);
+				break;
+			case "ObjectProperty":
+				if (node.computed) this.gatherRefs(node.key, skip, refs);
+				this.gatherRefs(node.value, skip, refs);
+				break;
+			case "VariableDeclarator":
+				this.gatherRefs(node.init, skip, refs);
+				break;
+			case "LabeledStatement":
+				this.gatherRefs(node.body, skip, refs);
+				break;
+			default:
+				for (const key of Object.keys(node)) {
+					if (SKIP_KEYS.has(key)) continue;
+					this.gatherRefs(node[key], skip, refs);
+				}
+		}
 	}
 
 	private compileTryStatement(node: TryStatement, scope: SSAScope): void {
