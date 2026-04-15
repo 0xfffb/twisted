@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { build } from "esbuild";
 import JavaScriptObfuscator from "javascript-obfuscator";
-import * as ts from "typescript";
+import { transformSync } from "@babel/core";
 import { dirname } from "node:path";
 
 interface Bundle {
@@ -63,18 +63,29 @@ vm.execute();
 `;
 }
 
-function downlevelToEs5(code: string): string {
-	return ts.transpileModule(code, {
-		compilerOptions: {
-			target: ts.ScriptTarget.ES5,
-			module: ts.ModuleKind.None,
-			allowJs: true,
-			importHelpers: false,
-			downlevelIteration: true,
-			useDefineForClassFields: false,
-		},
-		fileName: "runtime-es5.js",
-	}).outputText;
+function downlevelToEs5(source: string): string {
+	const result = transformSync(source, {
+		babelrc: false,
+		configFile: false,
+		comments: false,
+		compact: false,
+		presets: [
+		  [
+			"@babel/preset-env",
+			{
+			  targets: { ie: "11" },
+			  modules: false,
+			  bugfixes: true
+			}
+		  ]
+		]
+	  });
+
+	if (!result?.code) {
+		throw new Error("HyperionBuilder: Babel downlevel to ES5 failed");
+	}
+
+	return result.code;
 }
 
 async function buildRuntime(
