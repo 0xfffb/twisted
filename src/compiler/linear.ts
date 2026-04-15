@@ -38,7 +38,7 @@ import Context from "./context/context.js";
 import { Bulldozer } from "./bulldozer.js";
 import { BaseCompiler } from "./base.js";
 
-class LinearIRCompiler extends BaseCompiler {
+class LinearCompiler extends BaseCompiler {
 	private program: Program;
 	public ir: Instruction[];
 	private context: Context;
@@ -905,4 +905,4 @@ class LinearIRCompiler extends BaseCompiler {
 	}
 }
 
-export { LinearIRCompiler };
+export { LinearCompiler };
