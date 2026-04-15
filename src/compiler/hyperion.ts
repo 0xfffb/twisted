@@ -35,22 +35,21 @@ interface LoopFrame { breakBlock: BasicBlock; continueBlock: BasicBlock; }
 class SSAScope {
 	private bindings = new Map<string, Value>();
 
-	constructor(public readonly parent?: SSAScope) {}
-
-	define(name: string, val: Value): void {
-		this.bindings.set(name, val);
-	}
+	define(name: string, val: Value): void { this.bindings.set(name, val); }
 
 	lookup(name: string): Value {
 		const v = this.bindings.get(name);
-		if (v !== undefined) return v;
-		if (this.parent) return this.parent.lookup(name);
-		throw new Error(`Undefined variable: ${name}`);
+		if (v === undefined) throw new Error(`Undefined variable: ${name}`);
+		return v;
 	}
 
-	has(name: string): boolean {
-		return this.bindings.has(name) || (this.parent?.has(name) ?? false);
-	}
+	tryLookup(name: string): Value | undefined { return this.bindings.get(name); }
+
+	has(name: string): boolean { return this.bindings.has(name); }
+
+	snapshot(): Map<string, Value> { return new Map(this.bindings); }
+
+	restore(snap: Map<string, Value>): void { this.bindings = new Map(snap); }
 }
 
 class HyperionCompiler extends BaseCompiler {
@@ -129,6 +128,48 @@ class HyperionCompiler extends BaseCompiler {
 		return this.compileFunctionLike(name, node.params as Identifier[], node.body, scope);
 	}
 
+	private collectWrittenVars(nodes: any | any[]): Set<string> {
+		const vars = new Set<string>();
+		const walk = (n: any): void => {
+			if (!n || typeof n !== "object") return;
+			if (Array.isArray(n)) { n.forEach(walk); return; }
+			if (n.type === "FunctionDeclaration" || n.type === "FunctionExpression") return;
+			if (n.type === "UpdateExpression" && n.argument?.type === "Identifier") vars.add(n.argument.name);
+			if (n.type === "AssignmentExpression" && n.left?.type === "Identifier") vars.add(n.left.name);
+			for (const v of Object.values(n)) if (typeof v === "object") walk(v);
+		};
+		walk(nodes);
+		return vars;
+	}
+
+	private insertLoopPhis(
+		loopBody: any | any[],
+		scope: SSAScope,
+		entryBlock: BasicBlock,
+	): Map<string, { phi: ReturnType<IRBuilder["buildPhi"]>; preVal: Value }> {
+		const phis = new Map<string, { phi: ReturnType<IRBuilder["buildPhi"]>; preVal: Value }>();
+		for (const name of this.collectWrittenVars(loopBody)) {
+			const preVal = scope.tryLookup(name);
+			if (preVal === undefined) continue;
+			const phi = this.builder.buildPhi([{ block: entryBlock, value: preVal }]);
+			phis.set(name, { phi, preVal });
+			scope.define(name, phi);
+		}
+		return phis;
+	}
+
+	private backfillLoopPhis(
+		phis: Map<string, { phi: ReturnType<IRBuilder["buildPhi"]>; preVal: Value }>,
+		backBlock: BasicBlock,
+		scope: SSAScope,
+	): void {
+		for (const [name, { phi, preVal }] of phis) {
+			const bodyVal = scope.tryLookup(name) ?? preVal;
+			phi.incoming.push({ block: backBlock, value: bodyVal });
+			scope.define(name, phi);
+		}
+	}
+
 	private compileFunctionLike(name: string, params: Identifier[], body: BlockStatement, scope: SSAScope): Value {
 		const paramNames = params.map((p) => p.name);
 		const prevFn    = this.builder.currentFn;
@@ -137,7 +178,7 @@ class HyperionCompiler extends BaseCompiler {
 		const fn = this.builder.buildFunction(name, paramNames);
 		this.builder.setInsertPoint(fn, fn.entry);
 
-		const fnScope = new SSAScope(scope);
+		const fnScope = new SSAScope();
 		for (const param of fn.params) fnScope.define(param.name, param);
 
 		this.compileBlockStatement(body, fnScope);
@@ -156,19 +197,16 @@ class HyperionCompiler extends BaseCompiler {
 		const catchBlock = fn.createBlock(`catch.${id}`);
 		const afterBlock = fn.createBlock(`after.${id}`);
 
-		// entry → try_body
 		this.builder.buildBr(tryBlock);
-
-		// compile try body — mark every block in try region with unwindTo = catchBlock
 		this.builder.setInsertPoint(fn, tryBlock);
 		this.builder.setUnwindTarget(tryBlock, catchBlock);
 		this.compileBlockStatement(node.block, scope);
 		if (!tryBlock.terminator) this.builder.buildBr(afterBlock);
 
-		// compile catch body
 		this.builder.setInsertPoint(fn, catchBlock);
 		const exVal = this.builder.buildLandingPad();
-		const catchScope = new SSAScope(scope);
+		const catchScope = new SSAScope();
+		for (const [k, v] of scope.snapshot()) catchScope.define(k, v);
 		if (node.handler?.param?.type === "Identifier") {
 			catchScope.define((node.handler.param as Identifier).name, exVal);
 		}
@@ -176,63 +214,88 @@ class HyperionCompiler extends BaseCompiler {
 			this.compileBlockStatement(node.handler.body, catchScope);
 		}
 		if (!catchBlock.terminator) this.builder.buildBr(afterBlock);
-
-		// continue after
 		this.builder.setInsertPoint(fn, afterBlock);
 	}
 
 	private compileIfStatement(node: IfStatement, scope: SSAScope): void {
-		const fn   = this.builder.currentFn!;
-		const id   = fn.blockCount;
+		const fn  = this.builder.currentFn!;
+		const id  = fn.blockCount;
 		const then  = fn.createBlock(`then.${id}`);
+		const els   = node.alternate ? fn.createBlock(`else.${id}`) : null;
 		const after = fn.createBlock(`after.${id}`);
-		const els   = node.alternate ? fn.createBlock(`else.${id}`) : after;
+		const entryBlock = this.builder.currentBlock!;
 
 		const cond = this.compileExpression(node.test as Expression, scope);
-		this.builder.buildCondBr(cond, then, els);
+		this.builder.buildCondBr(cond, then, els ?? after);
 
+		const snap0 = scope.snapshot();
 		this.builder.setInsertPoint(fn, then);
 		this.compileStatement(node.consequent, scope);
-		if (!this.builder.currentBlock!.terminator) this.builder.buildBr(after);
-
-		if (node.alternate) {
+		const thenEnd = this.builder.currentBlock!;
+		if (!thenEnd.terminator) this.builder.buildBr(after);
+		const snap1 = scope.snapshot();
+		scope.restore(snap0);
+		let elseEnd = entryBlock;
+		if (node.alternate && els) {
 			this.builder.setInsertPoint(fn, els);
 			this.compileStatement(node.alternate, scope);
-			if (!this.builder.currentBlock!.terminator) this.builder.buildBr(after);
+			elseEnd = this.builder.currentBlock!;
+			if (!elseEnd.terminator) this.builder.buildBr(after);
 		}
-
+		const snap2 = node.alternate ? scope.snapshot() : snap0;
+		scope.restore(snap0);
 		this.builder.setInsertPoint(fn, after);
+		const allKeys = new Set([...snap1.keys(), ...snap2.keys()]);
+		for (const name of allKeys) {
+			const v1 = snap1.get(name);
+			const v2 = snap2.get(name);
+			if (v1 === undefined || v2 === undefined) {
+				scope.define(name, (v1 ?? v2)!);
+				continue;
+			}
+			if (v1 === v2) { scope.define(name, v1); continue; }
+			const phi = this.builder.buildPhi([
+				{ block: thenEnd, value: v1 },
+				{ block: node.alternate ? elseEnd : entryBlock, value: v2 },
+			]);
+			scope.define(name, phi);
+		}
 	}
 
 	private compileWhileStatement(node: WhileStatement, scope: SSAScope): void {
-		const fn   = this.builder.currentFn!;
-		const id   = fn.blockCount;
-		const cond  = fn.createBlock(`while_cond.${id}`);
-		const body  = fn.createBlock(`while_body.${id}`);
-		const after = fn.createBlock(`while_after.${id}`);
+		const fn         = this.builder.currentFn!;
+		const entryBlock = this.builder.currentBlock!;
+		const id         = fn.blockCount;
+		const condBlock  = fn.createBlock(`while_cond.${id}`);
+		const bodyBlock  = fn.createBlock(`while_body.${id}`);
+		const after      = fn.createBlock(`while_after.${id}`);
 
-		this.builder.buildBr(cond);
-		this.loopStack.push({ breakBlock: after, continueBlock: cond });
+		this.builder.buildBr(condBlock);
+		this.builder.setInsertPoint(fn, condBlock);
+		const phis = this.insertLoopPhis(node.body, scope, entryBlock);
 
-		this.builder.setInsertPoint(fn, cond);
 		const test = this.compileExpression(node.test as Expression, scope);
-		this.builder.buildCondBr(test, body, after);
+		this.builder.buildCondBr(test, bodyBlock, after);
 
-		this.builder.setInsertPoint(fn, body);
+		this.builder.setInsertPoint(fn, bodyBlock);
+		this.loopStack.push({ breakBlock: after, continueBlock: condBlock });
 		this.compileStatement(node.body, scope);
-		if (!this.builder.currentBlock!.terminator) this.builder.buildBr(cond);
-
+		const bodyEnd = this.builder.currentBlock!;
+		if (!bodyEnd.terminator) this.builder.buildBr(condBlock);
 		this.loopStack.pop();
+
+		this.backfillLoopPhis(phis, bodyEnd, scope);
 		this.builder.setInsertPoint(fn, after);
 	}
 
 	private compileForStatement(node: ForStatement, scope: SSAScope): void {
-		const fn   = this.builder.currentFn!;
-		const id   = fn.blockCount;
-		const cond   = fn.createBlock(`for_cond.${id}`);
-		const body   = fn.createBlock(`for_body.${id}`);
-		const update = node.update ? fn.createBlock(`for_update.${id}`) : cond;
-		const after  = fn.createBlock(`for_after.${id}`);
+		const fn    = this.builder.currentFn!;
+		const id    = fn.blockCount;
+		const condBlock   = fn.createBlock(`for_cond.${id}`);
+		const bodyBlock   = fn.createBlock(`for_body.${id}`);
+		const updateBlock = node.update ? fn.createBlock(`for_update.${id}`) : null;
+		const after       = fn.createBlock(`for_after.${id}`);
+		const continueTarget = updateBlock ?? condBlock;
 
 		if (node.init) {
 			if (node.init.type === "VariableDeclaration") {
@@ -241,28 +304,35 @@ class HyperionCompiler extends BaseCompiler {
 				this.compileExpression(node.init as Expression, scope);
 			}
 		}
-		this.builder.buildBr(cond);
-		this.loopStack.push({ breakBlock: after, continueBlock: update });
+		const preCondBlock = this.builder.currentBlock!;
+		this.builder.buildBr(condBlock);
+		this.builder.setInsertPoint(fn, condBlock);
+		const writtenNodes: any[] = [node.body];
+		if (node.update) writtenNodes.push(node.update);
+		const phis = this.insertLoopPhis(writtenNodes, scope, preCondBlock);
 
-		this.builder.setInsertPoint(fn, cond);
 		if (node.test) {
 			const test = this.compileExpression(node.test as Expression, scope);
-			this.builder.buildCondBr(test, body, after);
+			this.builder.buildCondBr(test, bodyBlock, after);
 		} else {
-			this.builder.buildBr(body);
+			this.builder.buildBr(bodyBlock);
 		}
 
-		this.builder.setInsertPoint(fn, body);
+		this.builder.setInsertPoint(fn, bodyBlock);
+		this.loopStack.push({ breakBlock: after, continueBlock: continueTarget });
 		this.compileStatement(node.body, scope);
-		if (!this.builder.currentBlock!.terminator) this.builder.buildBr(update);
+		if (!this.builder.currentBlock!.terminator) this.builder.buildBr(continueTarget);
+		this.loopStack.pop();
 
-		if (node.update) {
-			this.builder.setInsertPoint(fn, update);
+		let backfillBlock = this.builder.currentBlock!;
+		if (node.update && updateBlock) {
+			this.builder.setInsertPoint(fn, updateBlock);
 			this.compileExpression(node.update as Expression, scope);
-			if (!update.terminator) this.builder.buildBr(cond);
+			backfillBlock = this.builder.currentBlock!;
+			if (!backfillBlock.terminator) this.builder.buildBr(condBlock);
 		}
 
-		this.loopStack.pop();
+		this.backfillLoopPhis(phis, backfillBlock, scope);
 		this.builder.setInsertPoint(fn, after);
 	}
 
@@ -303,10 +373,7 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileBlockStatement(node: BlockStatement, scope: SSAScope): void {
-		const inner = new SSAScope(scope);
-		for (const statement of node.body) {
-			this.compileStatement(statement, inner);
-		}
+		for (const stmt of node.body) this.compileStatement(stmt, scope);
 	}
 
 	private compileExpression(node: Expression, scope: SSAScope): Value {

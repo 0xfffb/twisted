@@ -106,7 +106,7 @@ class IRBuilder {
 		return instr;
 	}
 
-	buildPhi(incoming: { block: number; value: Value }[]): PhiInstruction {
+	buildPhi(incoming: Array<{ block: BasicBlock; value: Value }> = []): PhiInstruction {
 		const { fn, block } = this.insertPoint();
 		const instr = new PhiInstruction(fn.allocReg(), incoming);
 		block.emit(instr);
