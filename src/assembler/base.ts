@@ -12,7 +12,7 @@ abstract class BaseAssembler {
 		this.meta = [];
 	}
 
-	abstract assemble(ir: any[]): AssemblerBundle
+	abstract assemble(input: any): AssemblerBundle;
 }
 
 export { BaseAssembler, type AssemblerBundle };

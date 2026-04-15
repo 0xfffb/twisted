@@ -6,7 +6,7 @@ class HyperionAssembler extends BaseAssembler {
 		super();
 	}
 
-	assemble(ir: any[]): AssemblerBundle {
+	assemble(input: string): AssemblerBundle {
 		return {
 			bytecode: this.bytecode,
 			meta: this.meta,
