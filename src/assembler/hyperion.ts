@@ -131,12 +131,22 @@ class HyperionAssembler extends BaseAssembler {
 				return Opcode.GreaterThanOrEqual;
 			case "BitOr":
 				return Opcode.BitOr;
+			case "BitAnd":
+				return Opcode.BitAnd;
 			case "BitXor":
 				return Opcode.BitXor;
 			case "Shl":
 				return Opcode.ShiftLeft;
+			case "Shr":
+				return Opcode.ShiftRight;
 			case "UShr":
 				return Opcode.ShiftRightUnsigned;
+			case "Mod":
+				return Opcode.Mod;
+			case "Instanceof":
+				return Opcode.Instanceof;
+			case "In":
+				return Opcode.In;
 			default:
 				throw new Error(`HyperionAssembler: 暂不支持的 Binary 运算 ${kind}`);
 		}
@@ -393,6 +403,12 @@ class HyperionAssembler extends BaseAssembler {
 			return;
 		}
 
+		if (kind === "Throw") {
+			this.emitValue(t.value);
+			this.pushIr(createInstruction(Opcode.Throw, []));
+			return;
+		}
+
 		if (kind === "Unreachable") {
 			this.pushIr(
 				createInstruction(Opcode.Jmp, [createArg(ArgKind.DynAddr, this.moduleHaltLabelId)]),
@@ -433,6 +449,18 @@ class HyperionAssembler extends BaseAssembler {
 					this.pushIr(createInstruction(Opcode.Push, [createArg(ArgKind.Number, 0)]));
 					this.emitValue(operand);
 					this.pushIr(createInstruction(Opcode.Sub, []));
+				} else if (op === "typeof") {
+					this.emitValue(operand);
+					this.pushIr(createInstruction(Opcode.Typeof, []));
+				} else if (op === "~") {
+					this.emitValue(operand);
+					this.pushIr(createInstruction(Opcode.BitNot, []));
+				} else if (op === "+") {
+					this.emitValue(operand);
+					this.pushIr(createInstruction(Opcode.UnaryPlus, []));
+				} else if (op === "void") {
+					this.emitValue(operand);
+					this.pushIr(createInstruction(Opcode.Void, []));
 				} else {
 					throw new Error(`HyperionAssembler: 暂不支持的 Unary "${op}"`);
 				}
@@ -469,8 +497,31 @@ class HyperionAssembler extends BaseAssembler {
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
+			case "Arguments": {
+				this.pushIr(createInstruction(Opcode.Arguments, []));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
 			case "Call": {
 				this.emitCall(ins);
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
+			case "ForInInit": {
+				this.emitValue(ins.obj);
+				this.pushIr(createInstruction(Opcode.ForInInit, []));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
+			case "ForInHas": {
+				this.emitValue(ins.iter);
+				this.pushIr(createInstruction(Opcode.ForInHas, []));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
+			case "ForInNext": {
+				this.emitValue(ins.iter);
+				this.pushIr(createInstruction(Opcode.ForInNext, []));
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
@@ -543,6 +594,26 @@ class HyperionAssembler extends BaseAssembler {
 				this.emitValue(ins.key);
 				this.emitValue(ins.value);
 				this.pushIr(createInstruction(Opcode.SetElement, []));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
+			case "DeleteProp": {
+				this.emitValue(ins.obj);
+				this.pushIr(
+					createInstruction(Opcode.DeleteProp, [createArg(ArgKind.Property, this.asStr(ins.key))]),
+				);
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
+			case "DeleteElem": {
+				this.emitValue(ins.obj);
+				this.emitValue(ins.key);
+				this.pushIr(createInstruction(Opcode.DeleteElem, []));
+				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
+				break;
+			}
+			case "LandingPad": {
+				this.pushIr(createInstruction(Opcode.LandingPad, []));
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}

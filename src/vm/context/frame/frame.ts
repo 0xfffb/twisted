@@ -24,6 +24,10 @@ class Frame {
 		}
 	}
 
+	public getParameters(): any[] {
+		return [...this.parameters];
+	}
+
 	public getTracebackPc(): number {
 		if (!this.tracebackPc) {
 			throw new Error("🤖 Traceback PC is not set");

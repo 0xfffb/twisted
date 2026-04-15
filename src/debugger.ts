@@ -270,7 +270,6 @@ function init() {
 }
 
 init()
-true
 	`;
 
 
@@ -299,12 +298,12 @@ true
 
 	console.log("es5Code: ", es5Code.code);
 	const compiler = new HyperionCompiler(es5Code.code);
-	const json = compiler.compile();
-	console.log(json);
+	const ir = compiler.compile();
+	console.log(ir);
 
 	console.log(compiler.dump());
 	const assembler = new HyperionAssembler();
-	const bundle = assembler.assemble(json);
+	const bundle = assembler.assemble(ir);
 	console.log(bundle);
 
 	const dom = new JSDOM();

@@ -29,6 +29,7 @@ import type {
 	ThrowStatement,
 	UpdateExpression,
 	ArrayExpression,
+	SequenceExpression,
 	ObjectExpression,
 	ObjectProperty,
 } from "@babel/types";
@@ -687,6 +688,8 @@ class HyperionCompiler extends BaseCompiler {
 				return this.compileLogicalExpression(node as LogicalExpression, scope);
 			case "ConditionalExpression":
 				return this.compileConditionalExpression(node as any, scope);
+			case "SequenceExpression":
+				return this.compileSequenceExpression(node as SequenceExpression, scope);
 			case "NewExpression":
 				return this.compileNewExpression(node as NewExpression, scope);
 			case "MemberExpression":
@@ -696,6 +699,18 @@ class HyperionCompiler extends BaseCompiler {
 			default:
 				throw new Error(`HyperionCompiler: Unsupported expression type ${node.type}`);
 		}
+	}
+
+	private compileSequenceExpression(node: SequenceExpression, scope: SSAScope): Value {
+		const exprs = node.expressions;
+		if (exprs.length === 0) {
+			return new ConstValue(null);
+		}
+		let result: Value = new ConstValue(null);
+		for (const expr of exprs) {
+			result = this.compileExpression(expr as Expression, scope);
+		}
+		return result;
 	}
 
 	private compileCallExpression(node: CallExpression, scope: SSAScope): Value {

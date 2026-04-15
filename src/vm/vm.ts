@@ -9,6 +9,11 @@ interface ClosureValue {
 	$caps: unknown[];
 }
 
+interface ForInIteratorState {
+	keys: string[];
+	index: number;
+}
+
 /** 检测一个值是否为 VM 闭包（兼容 function 和 object 两种形式） */
 function isClosure(v: unknown): v is ClosureValue {
 	return v != null && typeof (v as any).$pc === "number";
@@ -42,13 +47,18 @@ class VM {
 			[Opcode.Div]: this.opDiv.bind(this),
 			[Opcode.Equal]: this.opEqual.bind(this),
 			[Opcode.BitOr]: this.opBitOr.bind(this),
+			[Opcode.BitAnd]: this.opBitAnd.bind(this),
 			[Opcode.BitXor]: this.opBitXor.bind(this),
 			[Opcode.ShiftLeft]: this.opShiftLeft.bind(this),
+			[Opcode.ShiftRight]: this.opShiftRight.bind(this),
 			[Opcode.ShiftRightUnsigned]: this.opShiftRightUnsigned.bind(this),
+			[Opcode.Mod]: this.opMod.bind(this),
 			[Opcode.LessThan]: this.opLessThan.bind(this),
 			[Opcode.GreaterThan]: this.opGreaterThan.bind(this),
 			[Opcode.GreaterThanOrEqual]: this.opGreaterThanOrEqual.bind(this),
 			[Opcode.LessThanOrEqual]: this.opLessThanOrEqual.bind(this),
+			[Opcode.Instanceof]: this.opInstanceof.bind(this),
+			[Opcode.In]: this.opIn.bind(this),
 			[Opcode.Jmp]: this.opJmp.bind(this),
 			[Opcode.JmpIf]: this.opJmpIf.bind(this),
 			[Opcode.Store]: this.opStore.bind(this),
@@ -66,12 +76,24 @@ class VM {
 			[Opcode.PopFrame]: this.opPopFrame.bind(this),
 			[Opcode.BuildArray]: this.opBuildArray.bind(this),
 			[Opcode.BuildObject]: this.opBuildObject.bind(this),
+			[Opcode.Arguments]: this.opArguments.bind(this),
+			[Opcode.ForInInit]: this.opForInInit.bind(this),
+			[Opcode.ForInHas]: this.opForInHas.bind(this),
+			[Opcode.ForInNext]: this.opForInNext.bind(this),
 			[Opcode.LoadParameter]: this.opLoadParameter.bind(this),
+			[Opcode.DeleteProp]: this.opDeleteProp.bind(this),
+			[Opcode.DeleteElem]: this.opDeleteElem.bind(this),
 			[Opcode.MakeClosure]: this.opMakeClosure.bind(this),
 			[Opcode.LoadCapture]: this.opLoadCapture.bind(this),
 			[Opcode.InvokeValue]: this.opInvokeValue.bind(this),
 			[Opcode.Debugger]: this.opDebugger.bind(this),
 			[Opcode.Not]: this.opNot.bind(this),
+			[Opcode.Typeof]: this.opTypeof.bind(this),
+			[Opcode.UnaryPlus]: this.opUnaryPlus.bind(this),
+			[Opcode.BitNot]: this.opBitNot.bind(this),
+			[Opcode.Void]: this.opVoid.bind(this),
+			[Opcode.Throw]: this.opThrow.bind(this),
+			[Opcode.LandingPad]: this.opLandingPad.bind(this),
 			[Opcode.Halt]: this.opHalt.bind(this),
 		};
 	}
@@ -276,6 +298,16 @@ class VM {
 		}
 	}
 
+	private opBitAnd() {
+		const a = this.context.frame.stack.pop();
+		const b = this.context.frame.stack.pop();
+		if (typeof a === "number" && typeof b === "number") {
+			this.context.frame.stack.push(b & a);
+		} else {
+			throw new Error("Invalid operands for BitAnd");
+		}
+	}
+
 	private opBitXor() {
 		const a = this.context.frame.stack.pop();
 		const b = this.context.frame.stack.pop();
@@ -296,6 +328,16 @@ class VM {
 		}
 	}
 
+	private opShiftRight() {
+		const a = this.context.frame.stack.pop();
+		const b = this.context.frame.stack.pop();
+		if (typeof a === "number" && typeof b === "number") {
+			this.context.frame.stack.push(b >> a);
+		} else {
+			throw new Error("Invalid operands for ShiftRight");
+		}
+	}
+
 	private opShiftRightUnsigned() {
 		const a = this.context.frame.stack.pop();
 		const b = this.context.frame.stack.pop();
@@ -303,6 +345,16 @@ class VM {
 			this.context.frame.stack.push(b >>> a);
 		} else {
 			throw new Error("Invalid operands for ShiftRightUnsigned");
+		}
+	}
+
+	private opMod() {
+		const a = this.context.frame.stack.pop();
+		const b = this.context.frame.stack.pop();
+		if (typeof a === "number" && typeof b === "number") {
+			this.context.frame.stack.push(b % a);
+		} else {
+			throw new Error("Invalid operands for Mod");
 		}
 	}
 
@@ -328,6 +380,18 @@ class VM {
 		const a = this.context.frame.stack.pop();
 		const b = this.context.frame.stack.pop();
 		this.context.frame.stack.push(b <= a);
+	}
+
+	private opInstanceof() {
+		const rhs = this.context.frame.stack.pop();
+		const lhs = this.context.frame.stack.pop();
+		this.context.frame.stack.push((lhs as any) instanceof (rhs as any));
+	}
+
+	private opIn() {
+		const rhs = this.context.frame.stack.pop() as object;
+		const lhs = this.context.frame.stack.pop() as string | number | symbol;
+		this.context.frame.stack.push(lhs in (rhs as any));
 	}
 
 	private opJmp() {
@@ -465,10 +529,46 @@ class VM {
 		this.context.frame.stack.push(object);
 	}
 
+	private opArguments() {
+		this.context.frame.stack.push(this.context.frame.getParameters());
+	}
+
+	private opForInInit() {
+		const obj = this.context.frame.stack.pop();
+		const keys = obj == null ? [] : Object.keys(Object(obj));
+		const state: ForInIteratorState = { keys, index: 0 };
+		this.context.frame.stack.push(state);
+	}
+
+	private opForInHas() {
+		const state = this.context.frame.stack.pop() as ForInIteratorState;
+		this.context.frame.stack.push(state.index < state.keys.length);
+	}
+
+	private opForInNext() {
+		const state = this.context.frame.stack.pop() as ForInIteratorState;
+		const key = state.keys[state.index];
+		state.index += 1;
+		this.context.frame.stack.push(key);
+	}
+
 	private opLoadParameter() {
 		const index = this.reader.read();
 		const parameter = this.context.frame.getParameter(index);
 		this.context.frame.stack.push(parameter);
+	}
+
+	private opDeleteProp() {
+		const obj = this.context.frame.stack.pop() as Record<string, unknown>;
+		const propertyIndex = this.reader.read();
+		const key = this.meta[propertyIndex];
+		this.context.frame.stack.push(delete obj[key]);
+	}
+
+	private opDeleteElem() {
+		const key = this.context.frame.stack.pop() as string | number | symbol;
+		const obj = this.context.frame.stack.pop() as Record<string | number | symbol, unknown>;
+		this.context.frame.stack.push(delete obj[key]);
 	}
 
 	private opMakeClosure() {
@@ -527,6 +627,35 @@ class VM {
 	private opNot() {
 		const val = this.context.frame.stack.pop();
 		this.context.frame.stack.push(!val);
+	}
+
+	private opTypeof() {
+		const val = this.context.frame.stack.pop();
+		this.context.frame.stack.push(typeof val);
+	}
+
+	private opUnaryPlus() {
+		const val = this.context.frame.stack.pop();
+		this.context.frame.stack.push(+((val as any) ?? 0));
+	}
+
+	private opBitNot() {
+		const val = this.context.frame.stack.pop();
+		this.context.frame.stack.push(~(val as number));
+	}
+
+	private opVoid() {
+		this.context.frame.stack.pop();
+		this.context.frame.stack.push(undefined);
+	}
+
+	private opThrow() {
+		const val = this.context.frame.stack.pop();
+		throw val;
+	}
+
+	private opLandingPad() {
+		this.context.frame.stack.push(undefined);
 	}
 
 	private opHalt() {
