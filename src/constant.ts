@@ -56,6 +56,7 @@ const enum Opcode {
 	DeleteElem = 0x36,
 	Throw = 0x37,
 	LandingPad = 0x38,
+	LoadThis = 0x39,
 }
 
 const OPCODE_NAMES: Record<number, string> = {
@@ -116,6 +117,7 @@ const OPCODE_NAMES: Record<number, string> = {
 	[Opcode.DeleteElem]: "DeleteElem",
 	[Opcode.Throw]: "Throw",
 	[Opcode.LandingPad]: "LandingPad",
+	[Opcode.LoadThis]: "LoadThis",
 };
 
 const enum LabelType {

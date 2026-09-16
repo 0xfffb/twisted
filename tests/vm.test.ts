@@ -125,3 +125,39 @@ describe("VM / 函数", () => {
 		);
 	});
 });
+
+describe("VM / this 约定", () => {
+	it("方法调用时 this 指向接收者", () => {
+		assert.strictEqual(
+			run(`
+				window.__o = { v: 7 };
+				window.__o.m = function () {
+					window.__twisted_result = this.v;
+				};
+				window.__o.m();
+			`),
+			7,
+		);
+	});
+
+	it("宿主再次调用方法时 this 仍正确", () => {
+		const source = `
+			window.__o = { v: 9 };
+			window.__o.m = function () {
+				window.__twisted_result = this.v;
+			};
+		`;
+		const compiler = new HyperionCompiler(source);
+		const ir = compiler.compile();
+		const bundle = new HyperionAssembler().assemble(ir);
+		const dom = new JSDOM();
+		const win = dom.window as unknown as {
+			__o: { v: number; m: () => void };
+			__twisted_result?: unknown;
+			console: Console;
+		};
+		new VM(bundle.bytecode, bundle.meta, [win, win.console]).execute();
+		win.__o.m();
+		assert.strictEqual(win.__twisted_result, 9);
+	});
+});

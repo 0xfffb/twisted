@@ -94,18 +94,23 @@ class VM {
 			[Opcode.Void]: this.opVoid.bind(this),
 			[Opcode.Throw]: this.opThrow.bind(this),
 			[Opcode.LandingPad]: this.opLandingPad.bind(this),
+			[Opcode.LoadThis]: this.opLoadThis.bind(this),
 			[Opcode.Halt]: this.opHalt.bind(this),
 		};
 	}
 
 	/**
 	 * 从外部直接调用一个闭包（同步）。
-	 * 创建新的执行上下文，从 entryPc 开始，携带捕获变量和参数。
-	 * 当底层帧的 PopFrame 触发（tracebackPc 未设置）时返回结果。
+	 * @param thisArg 宿主调用时的 this（如 obj.method() / fn.call(obj)）
 	 */
-	public executeClosure(entryPc: number, caps: unknown[], args: unknown[]): unknown {
+	public executeClosure(
+		entryPc: number,
+		caps: unknown[],
+		args: unknown[],
+		thisArg?: unknown,
+	): unknown {
 		this.reader.jump(entryPc);
-		const closureFrame = new Frame(undefined, args, caps);
+		const closureFrame = new Frame(undefined, args, caps, thisArg);
 		this.context.pushFrame(closureFrame);
 
 		while (this.reader.hasNext()) {
@@ -117,7 +122,6 @@ class VM {
 				try {
 					returnPc = poppedFrame.getTracebackPc();
 				} catch (_) {
-					// tracebackPc 未设置 → 这是闭包自身的返回出口
 					return poppedFrame.stack.pop();
 				}
 				this.reader.jump(returnPc);
@@ -130,6 +134,10 @@ class VM {
 	}
 
 	public execute() {
+		// 顶层脚本 this 对齐浏览器非模块脚本：指向注入的全局（通常为 window）
+		if (this.context.frame.thisValue === undefined && this.dependencies[0] != null) {
+			this.context.frame.thisValue = this.dependencies[0];
+		}
 		while (this.reader.hasNext()) {
 			const opcode = this.reader.read();
 			this.handlers[opcode]?.();
@@ -426,13 +434,11 @@ class VM {
 		const thisVal = this.context.frame.stack.pop();
 		const args = this.context.frame.stack.pop() as unknown[];
 		if (isClosure(func)) {
-			// 闭包作为 method 被调用（如 window.fetch = function(...){}），忽略 this
 			const returnPc = this.reader.getPc();
-			const frame = new Frame(returnPc, args, func.$caps);
+			const frame = new Frame(returnPc, args, func.$caps, thisVal);
 			this.context.pushFrame(frame);
 			this.reader.jump(func.$pc);
 		} else {
-			// 同步调用宿主函数；若返回 Promise 则原样入栈，不 await
 			const ret = (func as Function).apply(thisVal, args);
 			this.context.frame.stack.push(ret);
 		}
@@ -568,8 +574,7 @@ class VM {
 
 	private opMakeClosure() {
 		// 格式：MakeClosure <entryPc> <numCaptures> [slot0 slot1 ...]
-		// 生成同步函数：VM 内部可通过 $pc/$caps 直接调度，
-		// 外部 JS 调用时创建子 VM 实例同步执行闭包体。
+		// 生成同步函数：保留宿主调用时的 this，再进子 VM。
 		const entryPc = this.reader.read();
 		const numCaptures = this.reader.read();
 		const caps: unknown[] = [];
@@ -580,9 +585,9 @@ class VM {
 		const bytecode = this._bytecode;
 		const meta = this.meta;
 		const deps = this.dependencies;
-		const fn = (...args: unknown[]) => {
+		const fn = function (this: unknown, ...args: unknown[]) {
 			const subVm = new VM(bytecode, meta, deps);
-			return subVm.executeClosure(entryPc, caps, args);
+			return subVm.executeClosure(entryPc, caps, args, this);
 		};
 		(fn as any).$pc = entryPc;
 		(fn as any).$caps = caps;
@@ -590,25 +595,27 @@ class VM {
 	}
 
 	private opLoadCapture() {
-		// 从当前帧的 captures 数组按下标加载捕获值
 		const index = this.reader.read();
 		this.context.frame.stack.push(this.context.frame.captures[index]);
 	}
 
 	private opInvokeValue() {
-		// 调用栈上的函数值（闭包或原生函数），无 this
-		// 栈序：args(下) func(上)
+		// 无 this 的调用（thisArg = undefined）
 		const func = this.context.frame.stack.pop();
 		const args = this.context.frame.stack.pop() as unknown[];
 		if (isClosure(func)) {
 			const returnPc = this.reader.getPc();
-			const frame = new Frame(returnPc, args, func.$caps);
+			const frame = new Frame(returnPc, args, func.$caps, undefined);
 			this.context.pushFrame(frame);
 			this.reader.jump(func.$pc);
 		} else {
 			const ret = (func as Function).apply(undefined, args);
 			this.context.frame.stack.push(ret);
 		}
+	}
+
+	private opLoadThis() {
+		this.context.frame.stack.push(this.context.frame.thisValue);
 	}
 
 	private opDebugger() {

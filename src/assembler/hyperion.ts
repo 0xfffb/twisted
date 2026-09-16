@@ -491,9 +491,7 @@ class HyperionAssembler extends BaseAssembler {
 				break;
 			}
 			case "This": {
-				this.pushIr(
-					createInstruction(Opcode.Dependency, [createArg(ArgKind.Dependency, DEPS_WINDOW)]),
-				);
+				this.pushIr(createInstruction(Opcode.LoadThis, []));
 				this.pushIr(createInstruction(Opcode.Store, [createArg(ArgKind.Variable, id)]));
 				break;
 			}
