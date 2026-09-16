@@ -1,4 +1,6 @@
 import { Opcode } from "../constant.js";
+import { RuntimeProtection } from "../obfuscator/runtime.js";
+import type { EncryptedMeta, Protection } from "../obfuscator/types.js";
 import Context from "./context/context.js";
 import Frame from "./context/frame/frame.js";
 import BytecodeReader from "./reader.js";
@@ -14,7 +16,6 @@ interface ForInIteratorState {
 	index: number;
 }
 
-/** 检测一个值是否为 VM 闭包（兼容 function 和 object 两种形式） */
 function isClosure(v: unknown): v is ClosureValue {
 	return v != null && typeof (v as any).$pc === "number";
 }
@@ -24,20 +25,31 @@ class VM {
 	private reader: BytecodeReader;
 	private readonly _bytecode: number[];
 	private dependencies: object[];
-	private meta: string[];
-	private handlers: Record<number, any>;
+	private meta: string[] | EncryptedMeta;
+	private readonly protection: Protection | null;
+	private readonly runtime: RuntimeProtection;
+	private readonly wireHalt: number;
+	private readonly wirePopFrame: number;
+	private handlers: Record<number, () => void>;
 
 	constructor(
 		bytecode: number[],
-		meta: string[] = [],
+		meta: string[] | EncryptedMeta = [],
 		dependencies: object[] = [window, console],
+		protection: Protection | null = null,
 	) {
 		this._bytecode = bytecode;
 		this.context = new Context();
 		this.reader = new BytecodeReader(bytecode);
 		this.dependencies = dependencies;
 		this.meta = meta;
-		this.handlers = {
+		this.protection = protection;
+		this.runtime = new RuntimeProtection(meta, protection);
+		const opcodeMap = this.runtime.opcodeMap;
+		this.wireHalt = opcodeMap?.[Opcode.Halt] ?? Opcode.Halt;
+		this.wirePopFrame = opcodeMap?.[Opcode.PopFrame] ?? Opcode.PopFrame;
+
+		const logicalHandlers: Record<number, () => void> = {
 			[Opcode.Push]: this.opPush.bind(this),
 			[Opcode.PushNull]: this.opPushNull.bind(this),
 			[Opcode.Pop]: this.opPop.bind(this),
@@ -73,7 +85,7 @@ class VM {
 			[Opcode.GetElement]: this.opGetElement.bind(this),
 			[Opcode.SetElement]: this.opSetElement.bind(this),
 			[Opcode.PushFrame]: this.opPushFrame.bind(this),
-			[Opcode.PopFrame]: this.opPopFrame.bind(this),
+			// PopFrame / Halt 由 interpret 统一处理
 			[Opcode.BuildArray]: this.opBuildArray.bind(this),
 			[Opcode.BuildObject]: this.opBuildObject.bind(this),
 			[Opcode.Arguments]: this.opArguments.bind(this),
@@ -95,8 +107,20 @@ class VM {
 			[Opcode.Throw]: this.opThrow.bind(this),
 			[Opcode.LandingPad]: this.opLandingPad.bind(this),
 			[Opcode.LoadThis]: this.opLoadThis.bind(this),
-			[Opcode.Halt]: this.opHalt.bind(this),
 		};
+
+		if (opcodeMap) {
+			this.handlers = {};
+			for (const logical of Object.keys(logicalHandlers).map(Number)) {
+				const wire = opcodeMap[logical];
+				if (wire === undefined) {
+					throw new Error(`VM: opcodeMap missing logical 0x${logical.toString(16)}`);
+				}
+				this.handlers[wire] = logicalHandlers[logical]!;
+			}
+		} else {
+			this.handlers = logicalHandlers;
+		}
 	}
 
 	/**
@@ -110,27 +134,8 @@ class VM {
 		thisArg?: unknown,
 	): unknown {
 		this.reader.jump(entryPc);
-		const closureFrame = new Frame(undefined, args, caps, thisArg);
-		this.context.pushFrame(closureFrame);
-
-		while (this.reader.hasNext()) {
-			const opcode = this.reader.read();
-			if (opcode === Opcode.Halt) break;
-			if (opcode === Opcode.PopFrame) {
-				const poppedFrame = this.context.popFrame();
-				let returnPc: number;
-				try {
-					returnPc = poppedFrame.getTracebackPc();
-				} catch (_) {
-					return poppedFrame.stack.pop();
-				}
-				this.reader.jump(returnPc);
-				this.context.frame.stack.push(poppedFrame.stack.pop());
-			} else {
-				this.handlers[opcode]?.();
-			}
-		}
-		return undefined;
+		this.context.pushFrame(new Frame(undefined, args, caps, thisArg));
+		return this.interpret({ returnOnNakedPopFrame: true });
 	}
 
 	public execute() {
@@ -138,106 +143,72 @@ class VM {
 		if (this.context.frame.thisValue === undefined && this.dependencies[0] != null) {
 			this.context.frame.thisValue = this.dependencies[0];
 		}
-		while (this.reader.hasNext()) {
-			const opcode = this.reader.read();
-			this.handlers[opcode]?.();
-		}
-		return this.context.frame.stack.peek();
+		return this.interpret({ returnOnNakedPopFrame: false });
 	}
 
-	// private async _execute(opcode: Opcode) {
-	// 	switch (opcode) {
-	// 		case Opcode.Push:
-	// 			return this.opPush();
-	// 		case Opcode.PushNull:
-	// 			return this.opPushNull();
-	// 		case Opcode.Pop:
-	// 			return this.opPop();
-	// 		case Opcode.Add:
-	// 			return this.opAdd();
-	// 		case Opcode.Sub:
-	// 			return this.opSub();
-	// 		case Opcode.Mul:
-	// 			return this.opMul();
-	// 		case Opcode.Div:
-	// 			return this.opDiv();
-	// 		case Opcode.Equal:
-	// 			return this.opEqual();
-	// 		case Opcode.BitOr:
-	// 			return this.opBitOr();
-	// 		case Opcode.BitXor:
-	// 			return this.opBitXor();
-	// 		case Opcode.ShiftLeft:
-	// 			return this.opShiftLeft();
-	// 		case Opcode.ShiftRightUnsigned:
-	// 			return this.opShiftRightUnsigned();
-	// 		case Opcode.LessThan:
-	// 			return this.opLessThan();
-	// 		case Opcode.GreaterThan:
-	// 			return this.opGreaterThan();
-	// 		case Opcode.GreaterThanOrEqual:
-	// 			return this.opGreaterThanOrEqual();
-	// 		case Opcode.LessThanOrEqual:
-	// 			return this.opLessThanOrEqual();
-	// 		case Opcode.Jmp:
-	// 			return this.opJmp();
-	// 		case Opcode.JmpIf:
-	// 			return this.opJmpIf();
-	// 		case Opcode.Store:
-	// 			return this.opStore();
-	// 		case Opcode.Load:
-	// 			return this.opLoad();
-	// 		case Opcode.LoadMeta:
-	// 			return this.opLoadMeta();
-	// 		case Opcode.Apply: {
-	// 			return this.opApply();
-	// 		}
-	// 		case Opcode.Await:
-	// 			return this.opAwait();
-	// 		case Opcode.Construct:
-	// 			return this.opConstruct();
-	// 		case Opcode.Dependency:
-	// 			return this.opDependency();
-	// 		case Opcode.Property:
-	// 			return this.opProperty();
-	// 		case Opcode.SetProperty:
-	// 			return this.opSetProperty();
-	// 		case Opcode.GetElement:
-	// 			return this.opGetElement();
-	// 		case Opcode.SetElement:
-	// 			return this.opSetElement();
-	// 		case Opcode.PushFrame:
-	// 			return this.opPushFrame();
-	// 		case Opcode.PopFrame:
-	// 			return this.opPopFrame();
-	// 		case Opcode.BuildArray:
-	// 			return this.opBuildArray();
-	// 		case Opcode.BuildObject:
-	// 			return this.opBuildObject();
-	// 		case Opcode.LoadParameter:
-	// 			return this.opLoadParameter();
-	// 		// ── 闭包扩展 ──────────────────────────────────────────────────
-	// 		case Opcode.MakeClosure:
-	// 			return this.opMakeClosure();
-	// 		case Opcode.LoadCapture:
-	// 			return this.opLoadCapture();
-	// 		case Opcode.InvokeValue:
-	// 			return this.opInvokeValue();
-	// 		case Opcode.Debugger:
-	// 			return this.opDebugger();
-	// 		case Opcode.Not:
-	// 			return this.opNot();
-	// 		case Opcode.Halt:
-	// 			return;
-	// 	}
-	// }
+	/**
+	 * 统一主循环。Halt 结束；PopFrame 无 traceback 时仅在闭包模式作为返回值。
+	 */
+	private interpret(options: { returnOnNakedPopFrame: boolean }): unknown {
+		while (this.reader.hasNext()) {
+			const opcode = this.reader.read();
+			if (opcode === this.wireHalt) {
+				break;
+			}
+			if (opcode === this.wirePopFrame) {
+				const popped = this.context.popFrame();
+				let returnPc: number;
+				try {
+					returnPc = popped.getTracebackPc();
+				} catch {
+					if (options.returnOnNakedPopFrame) {
+						return popped.stack.pop();
+					}
+					throw new Error("VM: PopFrame without traceback in script mode");
+				}
+				this.reader.jump(returnPc);
+				this.context.frame.stack.push(popped.stack.pop());
+				continue;
+			}
+			const handler = this.handlers[opcode];
+			if (!handler) {
+				throw new Error(`VM: unknown opcode 0x${opcode.toString(16)}`);
+			}
+			handler();
+		}
+		return options.returnOnNakedPopFrame ? undefined : this.context.frame.stack.peek();
+	}
+
+	private pop2(): [unknown, unknown] {
+		const a = this.context.frame.stack.pop();
+		const b = this.context.frame.stack.pop();
+		return [a, b];
+	}
+
+	private push(v: unknown): void {
+		this.context.frame.stack.push(v);
+	}
+
+	/** 栈序：先弹 a（右操作数），再弹 b（左操作数），计算 b ⊕ a */
+	private binNum(op: (b: number, a: number) => number, name: string): void {
+		const [a, b] = this.pop2();
+		if (typeof a !== "number" || typeof b !== "number") {
+			throw new Error(`Invalid operands for ${name}`);
+		}
+		this.push(op(b, a));
+	}
+
+	private binCmp(op: (b: unknown, a: unknown) => boolean): void {
+		const [a, b] = this.pop2();
+		this.push(op(b, a));
+	}
 
 	private opPush() {
-		this.context.frame.stack.push(this.reader.read());
+		this.push(this.reader.read());
 	}
 
 	private opPushNull() {
-		this.context.frame.stack.push(null);
+		this.push(null);
 	}
 
 	private opPop() {
@@ -245,162 +216,88 @@ class VM {
 	}
 
 	private opAdd() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
+		const [a, b] = this.pop2();
 		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(a + b);
+			this.push(a + b);
 		} else if (typeof a === "string" || typeof b === "string") {
-			this.context.frame.stack.push(String(b) + String(a));
+			this.push(String(b) + String(a));
 		} else {
 			throw new Error("Invalid operands for Add");
 		}
 	}
 
 	private opSub() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b - a);
-		} else {
-			throw new Error("Invalid operands for Sub");
-		}
+		this.binNum((b, a) => b - a, "Sub");
 	}
 
 	private opMul() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(a * b);
-		} else {
-			throw new Error("Invalid operands for Mul");
-		}
+		this.binNum((b, a) => b * a, "Mul");
 	}
 
 	private opDiv() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b / a);
-		} else {
-			throw new Error("Invalid operands for Div");
-		}
+		this.binNum((b, a) => b / a, "Div");
 	}
 
 	private opEqual() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		this.context.frame.stack.push(a === b);
+		this.binCmp((b, a) => b === a);
 	}
 
 	private opBitOr() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b | a);
-		} else {
-			throw new Error("Invalid operands for BitOr");
-		}
+		this.binNum((b, a) => b | a, "BitOr");
 	}
 
 	private opBitAnd() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b & a);
-		} else {
-			throw new Error("Invalid operands for BitAnd");
-		}
+		this.binNum((b, a) => b & a, "BitAnd");
 	}
 
 	private opBitXor() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b ^ a);
-		} else {
-			throw new Error("Invalid operands for BitXor");
-		}
+		this.binNum((b, a) => b ^ a, "BitXor");
 	}
 
 	private opShiftLeft() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b << a);
-		} else {
-			throw new Error("Invalid operands for ShiftLeft");
-		}
+		this.binNum((b, a) => b << a, "ShiftLeft");
 	}
 
 	private opShiftRight() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b >> a);
-		} else {
-			throw new Error("Invalid operands for ShiftRight");
-		}
+		this.binNum((b, a) => b >> a, "ShiftRight");
 	}
 
 	private opShiftRightUnsigned() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b >>> a);
-		} else {
-			throw new Error("Invalid operands for ShiftRightUnsigned");
-		}
+		this.binNum((b, a) => b >>> a, "ShiftRightUnsigned");
 	}
 
 	private opMod() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		if (typeof a === "number" && typeof b === "number") {
-			this.context.frame.stack.push(b % a);
-		} else {
-			throw new Error("Invalid operands for Mod");
-		}
+		this.binNum((b, a) => b % a, "Mod");
 	}
 
 	private opLessThan() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		this.context.frame.stack.push(b < a);
+		this.binCmp((b, a) => (b as any) < (a as any));
 	}
 
 	private opGreaterThan() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		this.context.frame.stack.push(b > a);
+		this.binCmp((b, a) => (b as any) > (a as any));
 	}
 
 	private opGreaterThanOrEqual() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		this.context.frame.stack.push(b >= a);
+		this.binCmp((b, a) => (b as any) >= (a as any));
 	}
 
 	private opLessThanOrEqual() {
-		const a = this.context.frame.stack.pop();
-		const b = this.context.frame.stack.pop();
-		this.context.frame.stack.push(b <= a);
+		this.binCmp((b, a) => (b as any) <= (a as any));
 	}
 
 	private opInstanceof() {
-		const rhs = this.context.frame.stack.pop();
-		const lhs = this.context.frame.stack.pop();
-		this.context.frame.stack.push((lhs as any) instanceof (rhs as any));
+		const [rhs, lhs] = this.pop2();
+		this.push((lhs as any) instanceof (rhs as any));
 	}
 
 	private opIn() {
-		const rhs = this.context.frame.stack.pop() as object;
-		const lhs = this.context.frame.stack.pop() as string | number | symbol;
-		this.context.frame.stack.push(lhs in (rhs as any));
+		const [rhs, lhs] = this.pop2();
+		this.push((lhs as string | number | symbol) in (rhs as object));
 	}
 
 	private opJmp() {
-		const target = this.reader.read();
-		this.reader.jump(target);
+		this.reader.jump(this.reader.read());
 	}
 
 	private opJmpIf() {
@@ -413,20 +310,15 @@ class VM {
 
 	private opStore() {
 		const value = this.context.frame.stack.pop();
-		const index = this.reader.read();
-		this.context.frame.variables.set(index, value);
+		this.context.frame.variables.set(this.reader.read(), value);
 	}
 
 	private opLoad() {
-		const index = this.reader.read();
-		const value = this.context.frame.variables.get(index);
-		this.context.frame.stack.push(value);
+		this.push(this.context.frame.variables.get(this.reader.read()));
 	}
 
 	private opLoadMeta() {
-		const index = this.reader.read();
-		const value = this.meta[index];
-		this.context.frame.stack.push(value);
+		this.push(this.runtime.meta(this.reader.read()));
 	}
 
 	private opApply() {
@@ -434,13 +326,10 @@ class VM {
 		const thisVal = this.context.frame.stack.pop();
 		const args = this.context.frame.stack.pop() as unknown[];
 		if (isClosure(func)) {
-			const returnPc = this.reader.getPc();
-			const frame = new Frame(returnPc, args, func.$caps, thisVal);
-			this.context.pushFrame(frame);
+			this.context.pushFrame(new Frame(this.reader.getPc(), args, func.$caps, thisVal));
 			this.reader.jump(func.$pc);
 		} else {
-			const ret = (func as Function).apply(thisVal, args);
-			this.context.frame.stack.push(ret);
+			this.push((func as Function).apply(thisVal, args));
 		}
 	}
 
@@ -451,38 +340,31 @@ class VM {
 	private opConstruct() {
 		const ctor = this.context.frame.stack.pop();
 		const args = this.context.frame.stack.pop();
-		const instance = Reflect.construct(ctor as Function, args as unknown[]);
-		this.context.frame.stack.push(instance);
+		this.push(Reflect.construct(ctor as Function, args as unknown[]));
 	}
 
 	private opDependency() {
-		const index = this.reader.read();
-		const dependency = this.dependencies[index];
-		console.log("🤖 Dependency index: %s, dependency: %s", index);
-		this.context.frame.stack.push(dependency);
+		this.push(this.dependencies[this.reader.read()]);
 	}
 
 	private opProperty() {
-		const dependency = this.context.frame.stack.pop() as Record<string, unknown>;
-		const propertyIndex = this.reader.read();
-		const property = this.meta[propertyIndex];
-		console.log("🤖 Property: %s", property);
-		this.context.frame.stack.push(dependency[property]);
+		const obj = this.context.frame.stack.pop() as Record<string, unknown>;
+		const key = this.runtime.meta(this.reader.read());
+		this.push(obj[key]);
 	}
 
 	private opSetProperty() {
 		const value = this.context.frame.stack.pop();
 		const object = this.context.frame.stack.pop() as Record<string, unknown>;
-		const propertyIndex = this.reader.read();
-		const property = this.meta[propertyIndex];
-		object[property] = value;
-		this.context.frame.stack.push(value);
+		const key = this.runtime.meta(this.reader.read());
+		object[key] = value;
+		this.push(value);
 	}
 
 	private opGetElement() {
 		const key = this.context.frame.stack.pop() as string | number | symbol;
 		const object = this.context.frame.stack.pop() as Record<string | number | symbol, unknown>;
-		this.context.frame.stack.push(object[key]);
+		this.push(object[key]);
 	}
 
 	private opSetElement() {
@@ -490,174 +372,143 @@ class VM {
 		const key = this.context.frame.stack.pop() as string | number | symbol;
 		const object = this.context.frame.stack.pop() as Record<string | number | symbol, unknown>;
 		object[key] = value;
-		this.context.frame.stack.push(value);
+		this.push(value);
 	}
 
 	private opPushFrame() {
-		// 调用约定：PushFrame 后紧跟 Jmp target（共 2 字节）。
-		// 返回地址 = getPc() + 2，即 Jmp 指令整体之后的首字节。
+		// 调用约定：PushFrame 后紧跟 Jmp target（共 2 槽）。
+		// 返回地址 = getPc() + 2，即 Jmp 整体之后。
 		const args = this.context.frame.stack.pop();
-		const returnPc = this.reader.getPc() + 2;
-		const frame = new Frame(returnPc, args);
-		this.context.pushFrame(frame);
-	}
-
-	private opPopFrame() {
-		const frame = this.context.popFrame();
-		this.reader.jump(frame.getTracebackPc());
-		this.context.frame.stack.push(frame.stack.pop());
+		this.context.pushFrame(new Frame(this.reader.getPc() + 2, args));
 	}
 
 	private opBuildArray() {
 		const length = this.reader.read();
-		console.log("🤖 BuildArray: %s", length);
-		const array = [];
-		for (let i = 0; i < length; i++) {
-			array.unshift(this.context.frame.stack.pop());
+		const array = new Array(length);
+		for (let i = length - 1; i >= 0; i--) {
+			array[i] = this.context.frame.stack.pop();
 		}
-		this.context.frame.stack.push(array);
+		this.push(array);
 	}
 
 	private opBuildObject() {
 		const length = this.reader.read();
-		console.log("🤖 BuildObject: %s", length);
 		const object: Record<string, unknown> = {};
 		for (let i = 0; i < length; i++) {
 			const value = this.context.frame.stack.pop();
 			const key = this.context.frame.stack.pop() as string;
 			object[key] = value;
 		}
-		this.context.frame.stack.push(object);
+		this.push(object);
 	}
 
 	private opArguments() {
-		this.context.frame.stack.push(this.context.frame.getParameters());
+		this.push(this.context.frame.getParameters());
 	}
 
 	private opForInInit() {
 		const obj = this.context.frame.stack.pop();
 		const keys = obj == null ? [] : Object.keys(Object(obj));
-		const state: ForInIteratorState = { keys, index: 0 };
-		this.context.frame.stack.push(state);
+		this.push({ keys, index: 0 } satisfies ForInIteratorState);
 	}
 
 	private opForInHas() {
 		const state = this.context.frame.stack.pop() as ForInIteratorState;
-		this.context.frame.stack.push(state.index < state.keys.length);
+		this.push(state.index < state.keys.length);
 	}
 
 	private opForInNext() {
 		const state = this.context.frame.stack.pop() as ForInIteratorState;
 		const key = state.keys[state.index];
 		state.index += 1;
-		this.context.frame.stack.push(key);
+		this.push(key);
 	}
 
 	private opLoadParameter() {
-		const index = this.reader.read();
-		const parameter = this.context.frame.getParameter(index);
-		this.context.frame.stack.push(parameter);
+		this.push(this.context.frame.getParameter(this.reader.read()));
 	}
 
 	private opDeleteProp() {
 		const obj = this.context.frame.stack.pop() as Record<string, unknown>;
-		const propertyIndex = this.reader.read();
-		const key = this.meta[propertyIndex];
-		this.context.frame.stack.push(delete obj[key]);
+		const key = this.runtime.meta(this.reader.read());
+		this.push(delete obj[key]);
 	}
 
 	private opDeleteElem() {
 		const key = this.context.frame.stack.pop() as string | number | symbol;
 		const obj = this.context.frame.stack.pop() as Record<string | number | symbol, unknown>;
-		this.context.frame.stack.push(delete obj[key]);
+		this.push(delete obj[key]);
 	}
 
 	private opMakeClosure() {
-		// 格式：MakeClosure <entryPc> <numCaptures> [slot0 slot1 ...]
-		// 生成同步函数：保留宿主调用时的 this，再进子 VM。
 		const entryPc = this.reader.read();
 		const numCaptures = this.reader.read();
 		const caps: unknown[] = [];
 		for (let i = 0; i < numCaptures; i++) {
-			const slot = this.reader.read();
-			caps.push(this.context.frame.variables.get(slot));
+			caps.push(this.context.frame.variables.get(this.reader.read()));
 		}
 		const bytecode = this._bytecode;
 		const meta = this.meta;
 		const deps = this.dependencies;
+		const protection = this.protection;
 		const fn = function (this: unknown, ...args: unknown[]) {
-			const subVm = new VM(bytecode, meta, deps);
+			const subVm = new VM(bytecode, meta, deps, protection);
 			return subVm.executeClosure(entryPc, caps, args, this);
 		};
 		(fn as any).$pc = entryPc;
 		(fn as any).$caps = caps;
-		this.context.frame.stack.push(fn);
+		this.push(fn);
 	}
 
 	private opLoadCapture() {
-		const index = this.reader.read();
-		this.context.frame.stack.push(this.context.frame.captures[index]);
+		this.push(this.context.frame.captures[this.reader.read()]);
 	}
 
 	private opInvokeValue() {
-		// 无 this 的调用（thisArg = undefined）
 		const func = this.context.frame.stack.pop();
 		const args = this.context.frame.stack.pop() as unknown[];
 		if (isClosure(func)) {
-			const returnPc = this.reader.getPc();
-			const frame = new Frame(returnPc, args, func.$caps, undefined);
-			this.context.pushFrame(frame);
+			this.context.pushFrame(new Frame(this.reader.getPc(), args, func.$caps, undefined));
 			this.reader.jump(func.$pc);
 		} else {
-			const ret = (func as Function).apply(undefined, args);
-			this.context.frame.stack.push(ret);
+			this.push((func as Function).apply(undefined, args));
 		}
 	}
 
 	private opLoadThis() {
-		this.context.frame.stack.push(this.context.frame.thisValue);
+		this.push(this.context.frame.thisValue);
 	}
 
-	private opDebugger() {
-		// debugger;
-	}
+	private opDebugger() {}
 
 	private opNot() {
-		const val = this.context.frame.stack.pop();
-		this.context.frame.stack.push(!val);
+		this.push(!this.context.frame.stack.pop());
 	}
 
 	private opTypeof() {
-		const val = this.context.frame.stack.pop();
-		this.context.frame.stack.push(typeof val);
+		this.push(typeof this.context.frame.stack.pop());
 	}
 
 	private opUnaryPlus() {
-		const val = this.context.frame.stack.pop();
-		this.context.frame.stack.push(+((val as any) ?? 0));
+		this.push(+((this.context.frame.stack.pop() as any) ?? 0));
 	}
 
 	private opBitNot() {
-		const val = this.context.frame.stack.pop();
-		this.context.frame.stack.push(~(val as number));
+		this.push(~(this.context.frame.stack.pop() as number));
 	}
 
 	private opVoid() {
 		this.context.frame.stack.pop();
-		this.context.frame.stack.push(undefined);
+		this.push(undefined);
 	}
 
 	private opThrow() {
-		const val = this.context.frame.stack.pop();
-		throw val;
+		throw this.context.frame.stack.pop();
 	}
 
 	private opLandingPad() {
-		this.context.frame.stack.push(undefined);
-	}
-
-	private opHalt() {
-		return;
+		this.push(undefined);
 	}
 }
+
 export default VM;

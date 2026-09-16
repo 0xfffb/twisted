@@ -3,10 +3,12 @@ import { build } from "esbuild";
 import JavaScriptObfuscator from "javascript-obfuscator";
 import * as ts from "typescript";
 import { dirname } from "node:path";
+import type { EncryptedMeta, Protection } from "../obfuscator/types.js";
 
 interface Bundle {
 	bytecode: number[];
-	meta: string[];
+	meta: string[] | EncryptedMeta;
+	protection?: Protection;
 }
 interface RuntimeBuildOptions {
 	obfuscate?: boolean;
@@ -51,14 +53,16 @@ const obfuscatorOptions: JavaScriptObfuscator.ObfuscatorOptions = {
 function createRuntimeEntry(bundle: Bundle): string {
 	const bytecode = JSON.stringify(bundle.bytecode);
 	const meta = JSON.stringify(bundle.meta);
+	const protection = JSON.stringify(bundle.protection ?? null);
 
 	return `
 import VM from "./src/vm/vm.ts";
 
 const bytecode = ${bytecode};
 const meta = ${meta};
+const protection = ${protection};
 
-const vm = new VM(bytecode, meta, [window, console]);
+const vm = new VM(bytecode, meta, [window, console], protection);
 vm.execute();
 `;
 }

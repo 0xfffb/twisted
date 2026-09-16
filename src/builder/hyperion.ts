@@ -1,17 +1,25 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { HyperionCompiler } from "../compiler/index.js";
-import { HyperionAssembler } from "../assembler/index.js";
 import { dirname, join } from "node:path";
+import { HyperionAssembler } from "../assembler/index.js";
+import { HyperionCompiler } from "../compiler/index.js";
+import {
+	MetaEncryptPass,
+	Obfuscator,
+	OpcodeRemapPass,
+} from "../obfuscator/index.js";
+import type { HardenedBundle, Protection } from "../obfuscator/types.js";
 
 interface Bundle {
 	bytecode: number[];
 	meta: string[];
-}
-interface BundleBuildOptions {
-	obfuscate?: boolean;
+	protection?: Protection;
 }
 
-/** 输入须为 ES5 语法；不再 Babel 降级。 */
+interface BundleBuildOptions {
+	obfuscate?: boolean;
+	seed?: string;
+}
+
 async function HyperionDump(inputPath: string, outDir = "."): Promise<void> {
 	const source = await readFile(inputPath, "utf-8");
 	const compiler = new HyperionCompiler(source);
@@ -24,17 +32,20 @@ async function HyperionDump(inputPath: string, outDir = "."): Promise<void> {
 async function HyperionBuildBundle(
 	inputPath: string,
 	outputPath: string,
-	_options: BundleBuildOptions = {},
-): Promise<Bundle> {
+	options: BundleBuildOptions = {},
+): Promise<Bundle | HardenedBundle> {
 	const source = await readFile(inputPath, "utf-8");
-	const compiler = new HyperionCompiler(source);
-	const ir = compiler.compile();
+	const ir = new HyperionCompiler(source).compile();
+	const assembled = new HyperionAssembler().assemble(ir);
 
-	const assembler = new HyperionAssembler();
-	const bundle = assembler.assemble(ir);
+	const bundle: Bundle | HardenedBundle = options.obfuscate
+		? new Obfuscator([new OpcodeRemapPass(), new MetaEncryptPass()]).obfuscate(
+				assembled,
+				options.seed,
+			)
+		: assembled;
 
 	await mkdir(dirname(outputPath), { recursive: true });
-
 	await writeFile(outputPath, JSON.stringify(bundle), "utf-8");
 	console.log(`Compiled bundle written to: ${outputPath}`);
 	return bundle;
