@@ -107,6 +107,34 @@ interface AssemblerBundle {
 
 ---
 
+## 字节码加固（可选）
+
+`HyperionBuildBundle(..., { obfuscate: true })` 在 assemble 之后走 `src/obfuscator`：
+
+```text
+PlainBundle → Obfuscator(Pass…) → HardenedBundle
+```
+
+**`HardenedBundle`**（`src/obfuscator/types.ts`）：
+
+```ts
+interface HardenedBundle {
+  bytecode: number[];
+  meta: string[] | number[][];  // MetaEncrypt 后为加密块
+  protection: {
+    version: 1;
+    seed: string;               // 仅落盘 seed；map/key 运行时由 Seed 派生
+    features: { opcodeRemap: boolean; metaEncrypt: boolean };
+  };
+}
+```
+
+当前 Pass：`OpcodeRemapPass`、`MetaEncryptPass`。VM 通过 `RuntimeProtection`（`src/obfuscator/runtime.ts`）在加载时还原 opcode 映射并解密 meta。
+
+CLI：`twisted build --obfuscate` / `twisted all --obfuscate`（build 阶段）。外层 JS 混淆见 README 中 `runtime --obfuscate` 说明。
+
+---
+
 ## Opcode（`src/constant.ts`）
 
 虚拟机字节码枚举 **`Opcode`** 为单一真源，与 `HyperionAssembler` / `src/vm/` 解释器一致。当前包含（摘抄分类）：
@@ -116,7 +144,7 @@ interface AssemblerBundle {
 - **位与移位**：`BitAnd`、`BitOr`、`BitXor`、`ShiftLeft`、`ShiftRight`、`ShiftRightUnsigned`
 - **逻辑与一元**：`Not`、`Typeof`、`UnaryPlus`、`BitNot`、`Void`
 - **控制流**：`Jmp`、`JmpIf`、`Halt`
-- **变量与帧**：`Store`、`Load`、`LoadParameter`、`PushFrame`、`PopFrame`
+- **变量与帧**：`Store`、`Load`、`LoadParameter`、`LoadThis`、`PushFrame`、`PopFrame`
 - **调用与对象**：`Apply`、`Construct`、`Dependency`、`Property`、`SetProperty`、`GetElement`、`SetElement`、`InvokeValue`
 - **闭包**：`MakeClosure`、`LoadCapture`
 - **结构**：`BuildArray`、`BuildObject`

@@ -12,9 +12,10 @@ An experimental **JavaScript → custom bytecode** toolchain for **browsers and 
 |--------|-------------|
 | **Compiler (Hyperion)** | ES5 AST → Hyperion IR (basic blocks, `Phi`, instructions) |
 | **Assembler** | IR → `{ bytecode: number[], meta: string[] }` |
-| **VM** | Interprets bytecode (dependency injection, closures, `try`/`catch`, `throw`, calling conventions, etc.) |
-| **Builder** | `HyperionBuildBundle` + esbuild browser runtime, optional `javascript-obfuscator` |
-| **CLI** | `build` / `dump` / `runtime` / `all` |
+| **Obfuscator** | Post-assemble bytecode hardening (opcode remap, meta encryption; `src/obfuscator`) |
+| **VM** | Synchronous bytecode interpreter (DI, closures, `this`, host callbacks, `try`/`catch`, etc.) |
+| **Builder** | `HyperionBuildBundle` + esbuild browser runtime |
+| **CLI** | `check` / `bench` / `build` / `dump` / `runtime` / `all` |
 
 ---
 
@@ -86,6 +87,8 @@ Local debug entry: `npx tsx src/debugger.ts`
 After `npm install` and `npm run build` to produce `dist/`, use the package CLI (see `bin` in `package.json`):
 
 ```text
+twisted check   <input.js> [input2.js ...]   # ES5 whitelist, no artifacts
+twisted bench   [input.js] [--harden] [--runs N]
 twisted build   <input.js> <bundle.json> [--obfuscate]
 twisted dump    <input.js> [outDir]
 twisted runtime <bundle.json> <runtime.js> [--obfuscate]
@@ -100,6 +103,15 @@ During development, for example:
 npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js --obfuscate
 ```
 
+**`--obfuscate`** (one flag, two stages):
+
+| Command | Effect |
+|---------|--------|
+| `build` / `all` (build stage) | Bytecode hardening → `HardenedBundle` with `protection.seed` |
+| `runtime` / `all` (runtime stage) | Also wraps IIFE with `javascript-obfuscator` |
+
+`npm run build:pages` does **not** pass `--obfuscate` (CI ships plain bytecode). Use `all --obfuscate` locally for hardened samples.
+
 ---
 
 ## npm scripts
@@ -111,8 +123,9 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run build` | TypeScript → `dist/` |
 | `npm run build:pages` | fingerprint → `public/runtime.js` (CI / Pages rebuild every run; do not commit) |
-| `npm run cli -- …` | Dev CLI (`build` / `dump` / `runtime` / `all`) |
+| `npm run cli -- …` | Dev CLI (`check` / `bench` / `build` / `dump` / `runtime` / `all`) |
 | `npm run format` | Prettier format `src/**/*.{js,ts}` |
+| `npm run bench` | Same as `twisted bench` (default `example/fingerprint.js`) |
 
 
 Everything else goes through the CLI, e.g.:
@@ -131,17 +144,17 @@ npm run cli -- dump <in.js> [outDir]
 twisted/
   src/
     assembler/          # HyperionAssembler → bytecode
-    builder/            # HyperionBuildBundle, runtime
-    compiler/           # HyperionCompiler, serialization, IR values & instructions (value/)
-    vm/                 # Synchronous bytecode interpreter and call stack
-    utils/              # Helpers (e.g. bytecode)
-    cli.ts              # CLI entry
+    builder/            # HyperionBuildBundle, runtime, bench
+    compiler/           # HyperionCompiler, whitelist, IR (value/)
+    obfuscator/         # Bytecode passes (OpcodeRemap, MetaEncrypt)
+    vm/                 # Synchronous bytecode interpreter
+    cli.ts              # check / bench / build / dump / runtime / all
     constant.ts         # Opcodes and related constants
     debugger.ts         # Debug entry
-    instruction.ts      # Assembler stack-IR buffer (Hyperion lowering)
+    instruction.ts      # Assembler stack-IR buffer
   example/              # Sample inputs (e.g. fingerprint)
-  tests/                # Compiler / VM tests
-  docs/                 # IR notes, this English README, todos
+  tests/                # compiler / vm / obfuscator / check tests
+  docs/                 # whitelist, IR, Worker callbacks, todos
   public/               # GitHub Pages (runtime.js built in CI)
   dist/                 # Build output (gitignored)
 ```
@@ -150,7 +163,9 @@ twisted/
 
 ## ES5 syntax support (Hyperion compiler)
 
-Input must be **ES5 syntax** (`var` / `function` / callbacks or `Promise.then`); there is **no** Babel downlevel. [`src/builder/hyperion.ts`](../src/builder/hyperion.ts) feeds source directly to `HyperionCompiler`. See **[syntax-whitelist.md](./syntax-whitelist.md)**. The tables below list supported statements and expressions; anything outside the whitelist raises `CompileError`.
+The authoritative whitelist and error conventions are in **[syntax-whitelist.md](./syntax-whitelist.md)** (implementation: [`src/compiler/whitelist.ts`](../src/compiler/whitelist.ts)).
+
+Input must be **ES5 syntax** (`var` / `function` / callbacks or `Promise.then`); there is **no** Babel downlevel. [`src/builder/hyperion.ts`](../src/builder/hyperion.ts) feeds source directly to `HyperionCompiler`. The tables below list supported statements and expressions; anything outside the whitelist raises `CompileError`.
 
 ### Statements
 
@@ -218,7 +233,9 @@ These do **not** change the ✅ marks for “ES5 path complete,” but going bey
 |------------|:------:|-------|
 | Dependency injection table | ✅ | Globals declared at compile time (aligned with VM injection) |
 | Browser `runtime.js` bundle | ✅ | See `npm run build:pages` / `npm run cli -- all …` |
-| Outer runtime obfuscation | ✅ | `javascript-obfuscator` (`--obfuscate`) |
+| Bytecode hardening | ✅ | `src/obfuscator` (`build --obfuscate`) |
+| Outer runtime obfuscation | ✅ | `javascript-obfuscator` (`runtime --obfuscate`) |
+| Host `this` / callbacks | ✅ | `MakeClosure` is a real JS function; see [worker-callbacks.md](./worker-callbacks.md) |
 
 **Legend:** ✅ complete on typical ES5 paths　❌ not implemented at statement level (listed above)
 
@@ -237,25 +254,13 @@ The built `runtime.js` is an **IIFE**; it runs the VM in the page context (defau
 | Doc | Content |
 |-----|---------|
 | [README (中文)](../README.md) | Chinese README |
-| [ir.md](./ir.md) | IR / opcode conventions |
-| [todos.md](./todos.md) | Notes and backlog |
+| [ir.md](./ir.md) | IR / opcode / hardened bundle |
+| [syntax-whitelist.md](./syntax-whitelist.md) | ES5 whitelist and `CompileError` |
+| [worker-callbacks.md](./worker-callbacks.md) | Worker host callback conventions |
+| [todos.md](./todos.md) | Backlog and roadmap |
+| [CURSOR.md](../CURSOR.md) | Quick index for contributors |
 
----
-
-### TODO (excerpt)
-
-#### Compiler / syntax
-
-- `LabeledStatement` and fine-grained `break`/`continue` labels
-- Destructuring, rest, and default parameters (needs IR and calling convention work)
-- `ClassDeclaration` / `ClassExpression`
-- `TemplateLiteral`
-- `ImportDeclaration` / `ExportDeclaration` (module semantics)
-- `MetaProperty` / `Super`, etc.
-
-#### Project
-
-- Keep this English README aligned with the Chinese README structure
+See **[todos.md](./todos.md)** for the full backlog.
 
 ---
 

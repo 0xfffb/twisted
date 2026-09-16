@@ -13,9 +13,10 @@
 | ---------------------- | ------------------------------------------------------------------------ |
 | **Compiler（Hyperion）** | ES5 AST → Hyperion IR（基本块、`Phi`、指令） |
 | **Assembler**          | IR → `{ bytecode: number[], meta: string[] }`                            |
-| **VM**                 | 解释执行 bytecode（依赖注入、闭包、`try/catch`、`throw`、调用约定等）                         |
-| **Builder**            | `HyperionBuildBundle` + esbuild 打包浏览器 runtime，可选 `javascript-obfuscator` |
-| **CLI**                | `build` / `dump` / `runtime` / `all`                                     |
+| **Obfuscator**         | assemble 后字节码加固（Opcode 置换、meta 加密；`src/obfuscator`）              |
+| **VM**                 | 同步解释 bytecode（依赖注入、闭包、`this`、宿主回调、`try/catch` 等）              |
+| **Builder**            | `HyperionBuildBundle` + esbuild 打包浏览器 runtime                         |
+| **CLI**                | `check` / `bench` / `build` / `dump` / `runtime` / `all`                 |
 
 
 ---
@@ -104,6 +105,15 @@ twisted version
 npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js --obfuscate
 ```
 
+**`--obfuscate` 含义**（同一 flag，作用阶段不同）：
+
+| 命令 | 效果 |
+|------|------|
+| `build` / `all` 的 build 阶段 | 字节码加固 → `HardenedBundle`（含 `protection.seed`） |
+| `runtime` / `all` 的 runtime 阶段 | 额外用 `javascript-obfuscator` 混淆 IIFE 外壳 |
+
+`npm run build:pages` **默认不加** `--obfuscate`（CI 产物为明文 bytecode）。本地 hardened 样例需手动 `all --obfuscate`。
+
 ---
 
 ## npm scripts
@@ -115,7 +125,7 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 | `npm run typecheck`   | `tsc --noEmit`                                  |
 | `npm run build`       | TypeScript → `dist/`                            |
 | `npm run build:pages` | fingerprint → `public/runtime.js`（CI / Pages **每次**重新生成，勿提交） |
-| `npm run cli -- …`    | 开发期 CLI（build / dump / runtime / all）           |
+| `npm run cli -- …`    | 开发期 CLI（check / bench / build / dump / runtime / all） |
 | `npm run format`      | Prettier 格式化 `src/**/*.{js,ts}`                 |
 | `npm run bench`       | 同 `twisted bench`（默认 `example/fingerprint.js`） |
 
@@ -136,17 +146,17 @@ npm run cli -- dump <in.js> [outDir]
 twisted/
   src/
     assembler/          # HyperionAssembler → bytecode
-    builder/              # HyperionBuildBundle、runtime
-    compiler/             # HyperionCompiler、序列化、IR 值与指令（value/）
-    vm/                   # 同步字节码解释器与调用栈
-    utils/                # 辅助脚本（如 bytecode）
-    cli.ts                # 命令行入口
-    constant.ts           # Opcode 等常量
-    debugger.ts           # 调试入口
-    instruction.ts        # Assembler 内部栈式指令缓冲
-  example/                # 示例输入（如 fingerprint）
-  tests/                  # compiler / vm 单测
-  docs/                   # IR 说明、英文 README、todos
+    builder/            # HyperionBuildBundle、runtime、bench
+    compiler/           # HyperionCompiler、白名单、IR（value/）
+    obfuscator/         # 字节码 Pass（OpcodeRemap、MetaEncrypt）
+    vm/                 # 同步字节码解释器
+    cli.ts              # check / bench / build / dump / runtime / all
+    constant.ts         # Opcode 等常量
+    debugger.ts         # 调试入口
+    instruction.ts      # Assembler 内部栈式指令缓冲
+  example/              # 示例输入（如 fingerprint）
+  tests/                # compiler / vm / obfuscator / check 等单测
+  docs/                 # 语法白名单、IR、Worker 约定、todos
   public/                 # GitHub Pages（runtime.js 由 CI 生成）
   dist/                   # 构建输出（gitignore）
 ```
@@ -234,7 +244,9 @@ twisted/
 | ------------------- | --- | --------------------------------------- |
 | 依赖注入表               | ✅   | 编译期可声明全局依赖（与 VM 注入一致）                   |
 | 浏览器 `runtime.js` 打包 | ✅   | 见 `npm run build:pages` / `npm run cli -- all …` |
-| 外层 runtime 混淆        | ✅   | `javascript-obfuscator`（`--obfuscate`）        |
+| 字节码加固               | ✅   | `src/obfuscator`（`build --obfuscate`）   |
+| 外层 runtime 混淆        | ✅   | `javascript-obfuscator`（`runtime --obfuscate`） |
+| 宿主 `this` / 回调       | ✅   | `MakeClosure` 为真 JS 函数；见 Worker 约定文档     |
 
 
 **图例：** ✅ 已在 ES5 常规路径完成　❌ 语句级未实现（上表单独列出）  
@@ -255,27 +267,14 @@ twisted/
 | 文档                                     | 内容                           |
 | -------------------------------------- | ---------------------------- |
 | [docs/README.en.md](docs/README.en.md) | 本说明的英文版（English translation） |
-| [docs/ir.md](docs/ir.md)               | IR / Opcode 约定               |
+| [docs/ir.md](docs/ir.md)               | IR / Opcode / 加固 bundle 约定   |
 | [docs/syntax-whitelist.md](docs/syntax-whitelist.md) | ES5 白名单与 CompileError |
-| [docs/todos.md](docs/todos.md)         | 备忘与待办                        |
+| [docs/worker-callbacks.md](docs/worker-callbacks.md) | Worker 宿主回调约定              |
+| [docs/todos.md](docs/todos.md)         | 待办与路线图                       |
+| [CURSOR.md](CURSOR.md)                 | Cursor / 贡献者快速索引            |
 
 
----
-
-### TODO（节选）
-
-#### 编译器 / 语法
-
-- `LabeledStatement` 与精细 `break/continue` 标签
-- 解构、剩余参数、默认参数（需 IR 与调用约定扩展）
-- `ClassDeclaration` / `ClassExpression`
-- `TemplateLiteral`
-- `ImportDeclaration` / `ExportDeclaration`（模块语义）
-- `MetaProperty` / `Super` 等
-
-#### 工程
-
-- 与 `docs/README.en.md` 同步本中文版的结构说明
+待办详见 **[docs/todos.md](docs/todos.md)**。
 
 ---
 
