@@ -9,7 +9,7 @@
 
 整体数据流（Hyperion）：
 
-`JavaScript → Babel 降 ES5 → AST → IRModule → JSON / 文本 dump → bytecode + meta → VM`
+`JavaScript (ES5) → AST → IRModule → JSON / 文本 dump → bytecode + meta → VM`
 
 ---
 

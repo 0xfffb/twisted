@@ -2,7 +2,7 @@
 
 [简体中文](../README.md) | English
 
-An experimental **JavaScript → custom bytecode** toolchain for **browsers and Node**: Babel lowers source to **ES5 (IE11 target)**, then **HyperionCompiler** builds SSA-style IR, which is assembled to stack-machine bytecode; optional IR obfuscation and browser bundling. Suited for learning compilers/VMs and studying front-end script protection trade-offs; **no commercial-grade hardening is promised**.
+An experimental **JavaScript → custom bytecode** toolchain for **browsers and Node**: input must be **ES5 syntax**, then **HyperionCompiler** builds SSA-style IR, assembled to stack-machine bytecode; optional obfuscation and browser bundling. Suited for learning compilers/VMs and studying front-end script protection trade-offs; **no commercial-grade hardening is promised**.
 
 ---
 
@@ -10,7 +10,7 @@ An experimental **JavaScript → custom bytecode** toolchain for **browsers and 
 
 | Module | Description |
 |--------|-------------|
-| **Compiler (Hyperion)** | Babel output AST → Hyperion IR (basic blocks, `Phi`, instructions) |
+| **Compiler (Hyperion)** | ES5 AST → Hyperion IR (basic blocks, `Phi`, instructions) |
 | **Assembler** | IR → `{ bytecode: number[], meta: string[] }` |
 | **VM** | Interprets bytecode (dependency injection, closures, `try`/`catch`, `throw`, calling conventions, etc.) |
 | **Obfuscator** | Obfuscation passes for the **linear** IR (exists alongside the Hyperion main path) |
@@ -49,7 +49,7 @@ Export IR debug artifacts:
 npm run cli -- dump example/fingerprint.js dist/browser
 ```
 
-**`dump`**: human-readable IR from `HyperionCompiler#dump()`. **Source vs dump** (after Babel → ES5, then compile):
+**`dump`**: human-readable IR from `HyperionCompiler#dump()`. **Source vs dump** (ES5 input required):
 
 ```js
 function add(a, b) {
@@ -152,11 +152,11 @@ twisted/
 
 ## ES5 syntax support (Hyperion compiler)
 
-At build time, **`src/builder/hyperion.ts`** runs `@babel/preset-env` (`targets: { ie: "11" }`) to lower source to ES5, then **`src/compiler/hyperion.ts`** walks the AST. The tables below list statements and expressions Hyperion must still recognize **after** lowering; if Babel output contains unsupported node types, compilation fails.
+Input must be **ES5 syntax** (`var` / `function` / callbacks or `Promise.then`); there is **no** Babel downlevel. [`src/builder/hyperion.ts`](../src/builder/hyperion.ts) feeds source directly to `HyperionCompiler`. See **[syntax-whitelist.md](./syntax-whitelist.md)**. The tables below list supported statements and expressions; anything outside the whitelist raises `CompileError`.
 
 ### Statements
 
-The **✅** column means the **common ES5-shaped AST** after Babel is fully supported; the notes column adds detail and does **not** mean “incomplete.”
+The **✅** column means the **common ES5 AST** is fully supported; the notes column adds detail and does **not** mean “incomplete.”
 
 | Syntax | Status | Notes |
 |--------|:------:|-------|
@@ -251,7 +251,7 @@ The built `runtime.js` is an **IIFE**; it runs the VM in the page context (defau
 - `LabeledStatement` and fine-grained `break`/`continue` labels
 - Destructuring, rest, and default parameters (needs IR and calling convention work)
 - `ClassDeclaration` / `ClassExpression`
-- `TemplateLiteral` (or rely on Babel lowering to string concat)
+- `TemplateLiteral`
 - `ImportDeclaration` / `ExportDeclaration` (module semantics)
 - `MetaProperty` / `Super`, etc.
 

@@ -1,9 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { HyperionCompiler } from "../compiler/index.js";
-import { CompileError, CompileErrorCode } from "../compiler/error.js";
 import { HyperionAssembler } from "../assembler/index.js";
 import { dirname, join } from "node:path";
-import { transformSync } from "@babel/core";
 
 interface Bundle {
 	bytecode: number[];
@@ -13,43 +11,14 @@ interface BundleBuildOptions {
 	obfuscate?: boolean;
 }
 
-function downlevelToEs5(source: string): string {
-	const result = transformSync(source, {
-		babelrc: false,
-		configFile: false,
-		comments: false,
-		compact: false,
-		presets: [
-			[
-				"@babel/preset-env",
-				{
-					targets: { ie: "11" },
-					modules: false,
-					bugfixes: true,
-				},
-			],
-		],
-	});
-
-	if (!result?.code) {
-		throw new CompileError({
-			code: CompileErrorCode.BABEL_FAILED,
-			message: "Babel downlevel to ES5 failed",
-			phase: "babel",
-		});
-	}
-
-	return result.code;
-}
-
+/** 输入须为 ES5 语法；不再 Babel 降级。 */
 async function HyperionDump(inputPath: string, outDir = "."): Promise<void> {
 	const source = await readFile(inputPath, "utf-8");
-	const es5Source = downlevelToEs5(source);
-	const compiler = new HyperionCompiler(es5Source);
+	const compiler = new HyperionCompiler(source);
 	compiler.compile();
 	await mkdir(outDir, { recursive: true });
 	await writeFile(join(outDir, "dump"), compiler.dump(), "utf-8");
-	console.log(`🔍 Dump written to ${outDir} (dump, ir.json, es5.js)`);
+	console.log(`🔍 Dump written to ${outDir}/dump`);
 }
 
 async function HyperionBuildBundle(
@@ -58,8 +27,7 @@ async function HyperionBuildBundle(
 	_options: BundleBuildOptions = {},
 ): Promise<Bundle> {
 	const source = await readFile(inputPath, "utf-8");
-	const es5Source = downlevelToEs5(source);
-	const compiler = new HyperionCompiler(es5Source);
+	const compiler = new HyperionCompiler(source);
 	const ir = compiler.compile();
 
 	const assembler = new HyperionAssembler();
@@ -72,4 +40,4 @@ async function HyperionBuildBundle(
 	return bundle;
 }
 
-export { HyperionBuildBundle, HyperionDump, downlevelToEs5 };
+export { HyperionBuildBundle, HyperionDump };

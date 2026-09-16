@@ -58,7 +58,7 @@
 - [ ] IR pass 管线化（normalize / obfuscate / validate）
 - [ ] 更细粒度混淆档位（dev/prod）
 - [ ] runtime 产物完整性校验（hash/signature）
-- [ ] 生成 sourcemap（仅开发环境；含 Babel 前行号映射）
+- [ ] 生成 sourcemap（仅开发环境）
 
 ---
 

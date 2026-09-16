@@ -4,7 +4,7 @@
  * CompileError[CODE]: message (line N, column M)
  */
 
-type CompilePhase = "babel" | "compile";
+type CompilePhase = "compile";
 
 interface CompileErrorOptions {
 	code: string;
@@ -61,8 +61,8 @@ const CompileErrorCode = {
 	UNSUPPORTED_UPDATE: "TWISTED_UNSUPPORTED_UPDATE",
 	UNSUPPORTED_ASSIGN_TARGET: "TWISTED_UNSUPPORTED_ASSIGN_TARGET",
 	UNSUPPORTED_BINDING: "TWISTED_UNSUPPORTED_BINDING",
+	UNSUPPORTED_VAR_KIND: "TWISTED_UNSUPPORTED_VAR_KIND",
 	SEMANTIC: "TWISTED_SEMANTIC",
-	BABEL_FAILED: "TWISTED_BABEL_FAILED",
 	UNDEFINED_VARIABLE: "TWISTED_UNDEFINED_VARIABLE",
 } as const;
 

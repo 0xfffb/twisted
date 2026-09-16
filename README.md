@@ -2,7 +2,7 @@
 
 简体中文 | [English](docs/README.en.md)
 
-面向**浏览器与 Node** 的实验性 **JavaScript → 自定义字节码** 工具链：先用 Babel 将源码降为 **ES5（IE11 目标）**，再由 **HyperionCompiler** 生成 SSA 风格 IR，汇编为栈式虚拟机字节码；可选 IR 混淆与浏览器端打包。适合学习编译器/虚拟机、研究前端脚本保护与对抗成本，**不提供商业级加固承诺**。
+面向**浏览器与 Node** 的实验性 **JavaScript → 自定义字节码** 工具链：输入须为 **ES5 语法**，由 **HyperionCompiler** 生成 SSA 风格 IR，汇编为栈式虚拟机字节码；可选混淆与浏览器端打包。适合学习编译器/虚拟机、研究前端脚本保护与对抗成本，**不提供商业级加固承诺**。
 
 ---
 
@@ -11,7 +11,7 @@
 
 | 模块                     | 说明                                                                       |
 | ---------------------- | ------------------------------------------------------------------------ |
-| **Compiler（Hyperion）** | Babel 降级后的 AST → Hyperion IR（基本块、`Phi`、指令）                               |
+| **Compiler（Hyperion）** | ES5 AST → Hyperion IR（基本块、`Phi`、指令） |
 | **Assembler**          | IR → `{ bytecode: number[], meta: string[] }`                            |
 | **VM**                 | 解释执行 bytecode（依赖注入、闭包、`try/catch`、`throw`、调用约定等）                         |
 | **Obfuscator**         | 面向线性 IR 的混淆 Pass（与 Hyperion 主路径并行存在）                                     |
@@ -51,7 +51,7 @@ npm run build:pages   # example/fingerprint.js → public/runtime.js
 npm run cli -- dump example/fingerprint.js dist/browser
 ```
 
-**`dump`**：`HyperionCompiler#dump()` 的可读 IR。**源码与 dump 对照**（先 Babel 降 ES5 再编译）：
+**`dump`**：`HyperionCompiler#dump()` 的可读 IR。**源码与 dump 对照**（输入须为 ES5）：
 
 ```js
 function add(a, b) {
@@ -156,11 +156,11 @@ twisted/
 
 生产路径的**权威白名单与报错约定**见 **[docs/syntax-whitelist.md](docs/syntax-whitelist.md)**（实现：`src/compiler/whitelist.ts`）。
 
-构建时 `**src/builder/hyperion.ts**` 先用 `@babel/preset-env`（`targets: { ie: "11" }`）将源码降为 ES5，再由 `**src/compiler/hyperion.ts**` 遍历 AST。下表表示 **降级后** 仍须被 Hyperion 识别的语句与表达式；若 Babel 输出仍含未实现节点类型，编译会报 `CompileError`。
+输入必须是 **ES5 语法**（`var` / `function` / 回调或 `Promise.then`）；**不再**经 Babel 降级。[`src/builder/hyperion.ts`](src/builder/hyperion.ts) 直接将源码交给 `HyperionCompiler`。下表为须被识别的语句与表达式；超出白名单会报 `CompileError`。
 
 ### Statement（语句）
 
-状态列 **✅** 表示：在 **Babel 降到 ES5 后的常规 AST** 上已完整走通；说明列仅作补充，不表示「未完成」。
+状态列 **✅** 表示：在 **ES5 常规 AST** 上已完整走通；说明列仅作补充，不表示「未完成」。
 
 
 | 语法                            | 状态  | 说明（补充）                                             |
@@ -168,7 +168,7 @@ twisted/
 | `EmptyStatement`              | ✅   | `;`                                                |
 | `ExpressionStatement`         | ✅   | -                                                  |
 | `BlockStatement`              | ✅   | -                                                  |
-| `VariableDeclaration`         | ✅   | `var`、单 `Identifier`、可无初值（视为 `null`）；与 ES5 写法一致    |
+| `VariableDeclaration`         | ✅   | **仅 `var`**；单 `Identifier`、可无初值（视为 `null`） |
 | `FunctionDeclaration`         | ✅   | 形参为 `Identifier` 列表（与 ES5 一致；默认值/剩余参数等为后续语法，见下方边界） |
 | `ReturnStatement`             | ✅   | 可无参数（等价 `return null`）                             |
 | `IfStatement`                 | ✅   | -                                                  |
@@ -217,7 +217,9 @@ twisted/
 | ----------------------------------------------------------------- | ------------------------ |
 | 解构绑定、`…` 剩余形参、默认参数                                                | 非 ES5 核心子集；编译器未实现对应绑定形式  |
 | `UpdateExpression` 作用于 **非** `Identifier`（如 `arr[i]++`、`obj.x++`） | 未实现                      |
-| `??`（若未降级进 AST）                                                   | 未按 nullish 单独建模          |
+| `??`                                                          | 未按 nullish 单独建模          |
+| `let` / `const`                                               | 编译期拒绝（仅允许 `var`）       |
+| 箭头函数 / `async`/`await` 语法                                 | 编译期拒绝；异步用回调或 `.then` |
 | 稀疏数组 `[,]`                                                        | 空缺处按 `null` 填充，与引擎稀疏语义不同 |
 | `LabeledStatement`、`import` / `export`、类等                         | 语句侧未实现                   |
 
@@ -266,7 +268,7 @@ twisted/
 - `LabeledStatement` 与精细 `break/continue` 标签
 - 解构、剩余参数、默认参数（需 IR 与调用约定扩展）
 - `ClassDeclaration` / `ClassExpression`
-- `TemplateLiteral`（或依赖 Babel 已全部降为字符串拼接）
+- `TemplateLiteral`
 - `ImportDeclaration` / `ExportDeclaration`（模块语义）
 - `MetaProperty` / `Super` 等
 

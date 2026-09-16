@@ -71,4 +71,28 @@ describe("HyperionCompiler / 白名单拒绝", () => {
 			},
 		);
 	});
+
+	it("let 抛 TWISTED_UNSUPPORTED_VAR_KIND", () => {
+		assert.throws(
+			() => compile("let x = 1;"),
+			(err: unknown) => {
+				assert.ok(err instanceof CompileError);
+				assert.strictEqual(err.code, CompileErrorCode.UNSUPPORTED_VAR_KIND);
+				assert.match(err.message, /only var is allowed/);
+				return true;
+			},
+		);
+	});
+
+	it("箭头函数抛 TWISTED_UNSUPPORTED_EXPRESSION", () => {
+		assert.throws(
+			() => compile("var f = () => 1;"),
+			(err: unknown) => {
+				assert.ok(err instanceof CompileError);
+				assert.strictEqual(err.code, CompileErrorCode.UNSUPPORTED_EXPRESSION);
+				assert.match(err.message, /ArrowFunctionExpression/);
+				return true;
+			},
+		);
+	});
 });

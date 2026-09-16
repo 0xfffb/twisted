@@ -48,6 +48,7 @@ import {
 	assertSupportedParams,
 	assertSupportedStatement,
 	assertSupportedUpdateArgument,
+	assertSupportedVarKind,
 } from "./whitelist.js";
 
 interface LoopFrame {
@@ -441,6 +442,7 @@ class HyperionCompiler extends BaseCompiler {
 		this.builder.setInsertPoint(fn, body);
 		const key = this.builder.buildForInNext(iter);
 		if (node.left.type === "VariableDeclaration") {
+			assertSupportedVarKind(node.left as VariableDeclaration);
 			const name = ((node.left as VariableDeclaration).declarations[0].id as Identifier).name;
 			scope.define(name, key);
 		} else if (node.left.type === "Identifier") {
@@ -673,6 +675,7 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileVariableDeclaration(node: VariableDeclaration, scope: SSAScope): void {
+		assertSupportedVarKind(node);
 		for (const decl of node.declarations) {
 			this.compileVariableDeclarator(decl as VariableDeclarator, scope);
 		}

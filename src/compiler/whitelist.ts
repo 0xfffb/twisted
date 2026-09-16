@@ -1,5 +1,5 @@
 /**
- * Hyperion ES5 生产语法白名单（以 Babel 降级后的 AST 为准）。
+ * Hyperion ES5 生产语法白名单（源码即 AST，不再 Babel 降级）。
  */
 import { CompileError, CompileErrorCode } from "./error.js";
 
@@ -70,6 +70,17 @@ function assertSupportedExpression(node: LocNode): void {
 	}
 }
 
+/** 仅允许 var（拒绝 let / const） */
+function assertSupportedVarKind(node: LocNode & { kind?: string }): void {
+	if (node.kind != null && node.kind !== "var") {
+		throw CompileError.fromNode(
+			CompileErrorCode.UNSUPPORTED_VAR_KIND,
+			`VariableDeclaration kind "${node.kind}" is not supported; only var is allowed`,
+			node,
+		);
+	}
+}
+
 /** UpdateExpression 仅允许 Identifier（拒绝 arr[i]++ / obj.x++） */
 function assertSupportedUpdateArgument(node: {
 	type: string;
@@ -125,6 +136,7 @@ export {
 	SUPPORTED_EXPRESSIONS,
 	assertSupportedStatement,
 	assertSupportedExpression,
+	assertSupportedVarKind,
 	assertSupportedUpdateArgument,
 	assertSupportedParams,
 	assertSupportedAssignmentTarget,
