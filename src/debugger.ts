@@ -19,7 +19,7 @@ async function main() {
 
 	const dom = new JSDOM("", { url: "https://example.com/" });
 	const vm = new VM(bundle.bytecode, bundle.meta, [dom.window, dom.window.console]);
-	const result = await vm.execute();
+	const result = vm.execute();
 	console.log(result);
 }
 

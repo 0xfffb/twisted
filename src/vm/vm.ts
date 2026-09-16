@@ -99,15 +99,11 @@ class VM {
 	}
 
 	/**
-	 * 从外部直接调用一个闭包。
+	 * 从外部直接调用一个闭包（同步）。
 	 * 创建新的执行上下文，从 entryPc 开始，携带捕获变量和参数。
 	 * 当底层帧的 PopFrame 触发（tracebackPc 未设置）时返回结果。
 	 */
-	public async executeClosure(
-		entryPc: number,
-		caps: unknown[],
-		args: unknown[],
-	): Promise<unknown> {
+	public executeClosure(entryPc: number, caps: unknown[], args: unknown[]): unknown {
 		this.reader.jump(entryPc);
 		const closureFrame = new Frame(undefined, args, caps);
 		this.context.pushFrame(closureFrame);
@@ -127,16 +123,16 @@ class VM {
 				this.reader.jump(returnPc);
 				this.context.frame.stack.push(poppedFrame.stack.pop());
 			} else {
-				await this.handlers[opcode]?.();
+				this.handlers[opcode]?.();
 			}
 		}
 		return undefined;
 	}
 
-	public async execute() {
+	public execute() {
 		while (this.reader.hasNext()) {
 			const opcode = this.reader.read();
-			await this.handlers[opcode]?.();
+			this.handlers[opcode]?.();
 		}
 		return this.context.frame.stack.peek();
 	}
@@ -425,7 +421,7 @@ class VM {
 		this.context.frame.stack.push(value);
 	}
 
-	private async opApply() {
+	private opApply() {
 		const func = this.context.frame.stack.pop();
 		const thisVal = this.context.frame.stack.pop();
 		const args = this.context.frame.stack.pop() as unknown[];
@@ -436,15 +432,14 @@ class VM {
 			this.context.pushFrame(frame);
 			this.reader.jump(func.$pc);
 		} else {
-			const ret = await Promise.resolve((func as Function).apply(thisVal, args));
+			// 同步调用宿主函数；若返回 Promise 则原样入栈，不 await
+			const ret = (func as Function).apply(thisVal, args);
 			this.context.frame.stack.push(ret);
 		}
 	}
 
-	private async opAwait() {
-		const value = this.context.frame.stack.pop();
-		const awaited = await Promise.resolve(value);
-		this.context.frame.stack.push(awaited);
+	private opAwait() {
+		throw new Error("Await is not supported: VM is synchronous");
 	}
 
 	private opConstruct() {
@@ -573,8 +568,8 @@ class VM {
 
 	private opMakeClosure() {
 		// 格式：MakeClosure <entryPc> <numCaptures> [slot0 slot1 ...]
-		// 生成真正的 async 函数：VM 内部可通过 $pc/$caps 直接调度，
-		// 外部 JS 调用时创建子 VM 实例执行闭包体，两者均正确工作。
+		// 生成同步函数：VM 内部可通过 $pc/$caps 直接调度，
+		// 外部 JS 调用时创建子 VM 实例同步执行闭包体。
 		const entryPc = this.reader.read();
 		const numCaptures = this.reader.read();
 		const caps: unknown[] = [];
@@ -585,12 +580,10 @@ class VM {
 		const bytecode = this._bytecode;
 		const meta = this.meta;
 		const deps = this.dependencies;
-		const fn = async (...args: unknown[]) => {
-			// 每次外部调用都使用独立的 VM 实例，避免并发污染
+		const fn = (...args: unknown[]) => {
 			const subVm = new VM(bytecode, meta, deps);
 			return subVm.executeClosure(entryPc, caps, args);
 		};
-		// 挂载标记供 VM 内部 isClosure 检测和直接调度
 		(fn as any).$pc = entryPc;
 		(fn as any).$caps = caps;
 		this.context.frame.stack.push(fn);
@@ -602,20 +595,18 @@ class VM {
 		this.context.frame.stack.push(this.context.frame.captures[index]);
 	}
 
-	private async opInvokeValue() {
+	private opInvokeValue() {
 		// 调用栈上的函数值（闭包或原生函数），无 this
 		// 栈序：args(下) func(上)
 		const func = this.context.frame.stack.pop();
 		const args = this.context.frame.stack.pop() as unknown[];
 		if (isClosure(func)) {
-			// 闭包：建帧、带入捕获、跳入函数体
 			const returnPc = this.reader.getPc();
 			const frame = new Frame(returnPc, args, func.$caps);
 			this.context.pushFrame(frame);
 			this.reader.jump(func.$pc);
 		} else {
-			// 原生函数
-			const ret = await Promise.resolve((func as Function).apply(undefined, args));
+			const ret = (func as Function).apply(undefined, args);
 			this.context.frame.stack.push(ret);
 		}
 	}

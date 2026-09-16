@@ -9,7 +9,7 @@ import VM from "../src/vm/vm.js";
  * Hyperion __main__ 结束不向 execute() 暴露返回值。
  * 测试通过写入 window.__twisted_result 观测结果。
  */
-async function run(exprOrBody: string): Promise<unknown> {
+function run(exprOrBody: string): unknown {
 	const source = exprOrBody.includes("__twisted_result")
 		? exprOrBody
 		: `window.__twisted_result = (${exprOrBody});`;
@@ -18,18 +18,18 @@ async function run(exprOrBody: string): Promise<unknown> {
 	const bundle = new HyperionAssembler().assemble(ir);
 	const dom = new JSDOM();
 	const win = dom.window as unknown as { __twisted_result?: unknown; console: Console };
-	await new VM(bundle.bytecode, bundle.meta, [win, win.console]).execute();
+	new VM(bundle.bytecode, bundle.meta, [win, win.console]).execute();
 	return win.__twisted_result;
 }
 
 describe("VM / 算术", () => {
-	it("1 + 2 === 3", async () => {
-		assert.strictEqual(await run("1 + 2"), 3);
+	it("1 + 2 === 3", () => {
+		assert.strictEqual(run("1 + 2"), 3);
 	});
 
-	it("局部变量加法", async () => {
+	it("局部变量加法", () => {
 		assert.strictEqual(
-			await run(`
+			run(`
 				var a = 1;
 				var b = 2;
 				window.__twisted_result = a + b;
@@ -38,57 +38,57 @@ describe("VM / 算术", () => {
 		);
 	});
 
-	it("减法 10 - 3", async () => {
-		assert.strictEqual(await run("10 - 3"), 7);
+	it("减法 10 - 3", () => {
+		assert.strictEqual(run("10 - 3"), 7);
 	});
 
-	it("乘法 4 * 5", async () => {
-		assert.strictEqual(await run("4 * 5"), 20);
+	it("乘法 4 * 5", () => {
+		assert.strictEqual(run("4 * 5"), 20);
 	});
 
-	it("除法 20 / 4", async () => {
-		assert.strictEqual(await run("20 / 4"), 5);
+	it("除法 20 / 4", () => {
+		assert.strictEqual(run("20 / 4"), 5);
 	});
 });
 
 describe("VM / 比较与布尔", () => {
-	it("1 === 1", async () => {
-		assert.strictEqual(await run("1 === 1"), true);
+	it("1 === 1", () => {
+		assert.strictEqual(run("1 === 1"), true);
 	});
 
-	it("1 < 2", async () => {
-		assert.strictEqual(await run("1 < 2"), true);
+	it("1 < 2", () => {
+		assert.strictEqual(run("1 < 2"), true);
 	});
 
-	it("!false", async () => {
-		assert.strictEqual(await run("!false"), true);
+	it("!false", () => {
+		assert.strictEqual(run("!false"), true);
 	});
 });
 
 describe("VM / 位运算", () => {
-	it("1 | 2", async () => {
-		assert.strictEqual(await run("1 | 2"), 3);
+	it("1 | 2", () => {
+		assert.strictEqual(run("1 | 2"), 3);
 	});
 
-	it("1 << 3", async () => {
-		assert.strictEqual(await run("1 << 3"), 8);
+	it("1 << 3", () => {
+		assert.strictEqual(run("1 << 3"), 8);
 	});
 });
 
 describe("VM / 字符串与字面量", () => {
-	it('"a" + "b"', async () => {
-		assert.strictEqual(await run('"a" + "b"'), "ab");
+	it('"a" + "b"', () => {
+		assert.strictEqual(run('"a" + "b"'), "ab");
 	});
 
-	it("null", async () => {
-		assert.strictEqual(await run("null"), null);
+	it("null", () => {
+		assert.strictEqual(run("null"), null);
 	});
 });
 
 describe("VM / 分支与赋值", () => {
-	it("if (true) 分支", async () => {
+	it("if (true) 分支", () => {
 		assert.strictEqual(
-			await run(`
+			run(`
 				if (true) {
 					window.__twisted_result = 2;
 				} else {
@@ -99,9 +99,9 @@ describe("VM / 分支与赋值", () => {
 		);
 	});
 
-	it("赋值与 +=", async () => {
+	it("赋值与 +=", () => {
 		assert.strictEqual(
-			await run(`
+			run(`
 				var x = 1;
 				x = 2;
 				x += 1;
@@ -113,9 +113,9 @@ describe("VM / 分支与赋值", () => {
 });
 
 describe("VM / 函数", () => {
-	it("函数声明与调用", async () => {
+	it("函数声明与调用", () => {
 		assert.strictEqual(
-			await run(`
+			run(`
 				function add(a, b) {
 					return a + b;
 				}
