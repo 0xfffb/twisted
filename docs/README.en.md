@@ -21,7 +21,7 @@ An experimental **JavaScript → custom bytecode** toolchain for **browsers and 
 
 ## Requirements
 
-- **Node.js** ≥ 18 (`node:test`, native `fetch`, etc.)
+- **Node.js** ≥ 20.19 (or ≥ 22.12; matches `jsdom@27`)
 
 ---
 
