@@ -143,6 +143,7 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 | `npm run build:runtime -- <bundle> <out>` | 由 bundle 生成浏览器 `runtime.js`（须自行传路径）               |
 | `npm run build:all`                  | 示例：fingerprint → bundle + runtime（默认混淆）               |
 | `npm run build:all:plain`            | 同上，不启用 builder 侧混淆选项                                     |
+| `npm run build:pages`                | fingerprint → `public/runtime.js`（供 GitHub Pages / 本地预览） |
 | `npm run dump`                       | `dump` 写入输出目录（默认 `dist/browser`）                         |
 | `npm run format`                     | Prettier 格式化 `src/**/*.{js,ts}`                          |
 | `npm run format:check`               | Prettier 仅检查，不写入                                         |
