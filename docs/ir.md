@@ -1,15 +1,14 @@
 ## Twisted IR（当前实现）
 
-仓库里并存两套中间表示，**默认构建链路（`npm run cli -- build` / CLI `build`）使用 Hyperion IR**；线性 IR 仍供 `LinearCompiler` 与部分混淆 Pass 使用。
+生产路径只保留 **Hyperion IR**。
 
 | 路径 | 编译器 | IR 形态 | 汇编器 |
 |------|--------|---------|--------|
-| **Hyperion（主路径）** | `HyperionCompiler` | 模块 + 函数 + **基本块** + SSA 风格指令 | `HyperionAssembler` |
-| **Linear（兼容）** | `LinearCompiler` | `Instruction[]` 线性序列 | `LinearAssembler` |
+| **Hyperion（唯一生产路径）** | `HyperionCompiler` | 模块 + 函数 + **基本块** + SSA 风格指令 | `HyperionAssembler` |
 
-整体数据流（Hyperion）：
+整体数据流：
 
-`JavaScript (ES5) → AST → IRModule → JSON / 文本 dump → bytecode + meta → VM`
+`JavaScript (ES5) → AST → IRModule → JSON / 文本 dump → 栈式 Instruction[] → bytecode + meta → VM`
 
 ---
 
@@ -76,9 +75,9 @@
 
 ---
 
-## 线性 IR（Linear）
+## 栈式指令缓冲（Assembler 内部）
 
-`src/instruction.ts` 中仍为**栈机式线性指令**：
+`HyperionAssembler` 将 SSA IR **降低**为 `src/instruction.ts` 中的栈机式指令序列，再编码为 `bytecode`：
 
 ```ts
 interface Instruction {
@@ -89,13 +88,13 @@ interface Instruction {
 
 `ArgKind`：`String`、`Number`、`Dependency`、`Property`、`Parameter`、`Variable`、`DynAddr` 等。
 
-用于 **`LinearCompiler` → `LinearAssembler`**，可与 `src/obfuscator/` 内面向该 IR 的 Pass 组合。
+（旧的独立 `LinearCompiler` / IR obfuscator 已移除。）
 
 ---
 
 ## 汇编输出
 
-两种 Assembler 均实现 `assemble(...) → AssemblerBundle`（`src/assembler/base.ts`）：
+`HyperionAssembler.assemble(...) → AssemblerBundle`（`src/assembler/base.ts`）：
 
 ```ts
 interface AssemblerBundle {
@@ -121,8 +120,7 @@ interface AssemblerBundle {
 - **调用与对象**：`Apply`、`Construct`、`Dependency`、`Property`、`SetProperty`、`GetElement`、`SetElement`、`InvokeValue`
 - **闭包**：`MakeClosure`、`LoadCapture`
 - **结构**：`BuildArray`、`BuildObject`
-- **异步（线性路径等）**：`Await`
-- **其它**：`Arguments`、`ForInInit`、`ForInHas`、`ForInNext`、`DeleteProp`、`DeleteElem`、`Throw`、`LandingPad`、`Debugger`
+- **其它**：`Arguments`、`ForInInit`、`ForInHas`、`ForInNext`、`DeleteProp`、`DeleteElem`、`Throw`、`LandingPad`、`Debugger`（`Await` 枚举仍保留但 VM 同步模式下会拒绝）
 
 新增语义时须同步：**常量枚举、`OPCODE_NAMES`、Hyperion 汇编、VM 分发**。
 
@@ -141,6 +139,5 @@ interface AssemblerBundle {
 
 ## 注意事项
 
-- **主路径**以 **`HyperionCompiler`、`serialize.ts`、`assembler/hyperion.ts`、`vm/`** 为准。
-- 线性 IR 以 **`instruction.ts`、`compiler/linear.ts`、`assembler/linear.ts`** 为准。
+- **生产路径**以 **`HyperionCompiler`、`serialize.ts`、`assembler/hyperion.ts`、`vm/`** 为准。
 - 文档与代码冲突时，以仓库内实现为准；扩展语法时请同步编译器、序列化、汇编与 VM。

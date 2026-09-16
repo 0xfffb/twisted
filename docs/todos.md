@@ -6,15 +6,11 @@
 
 ## 已完成（摘要）
 
-- [x] 线性 IR：`Compiler` 输出 `Instruction[]`
-- [x] Assembler：`Instruction[] -> { bytecode, meta }`
-- [x] 字符串常量池：`meta: string[]` + `LoadMeta`
-- [x] VM 基础执行链路：算术、跳转、变量、依赖、调用、构造、对象/数组构建
-- [x] 属性赋值链路：`AssignmentExpression` + `SetProperty`
-- [x] Builder 流程：bundle / runtime / all
+- [x] Hyperion ES5 白名单 + `CompileError`
+- [x] Hyperion 路径单测 + GitHub Actions CI / Pages 每次重建 runtime
+- [x] 去 Babel；同步 VM
+- [x] Hyperion 生产路径收敛：移除 LinearCompiler / LinearAssembler / IR obfuscator
 - [x] runtime 打包混淆（esbuild + javascript-obfuscator）
-- [x] Hyperion ES5 语法白名单 + `CompileError`（见 [syntax-whitelist.md](./syntax-whitelist.md)）
-- [x] Hyperion 路径单测 + GitHub Actions CI
 
 ---
 
@@ -28,8 +24,7 @@
 
 ### 2) 路径收敛
 
-- [ ] Linear 编译/混淆旁路标记为 experimental 或移除
-- [ ] 函数值语义与闭包边界测试补齐
+- [x] 移除 Linear 编译/混淆旁路，生产只留 Hyperion
 
 ---
 

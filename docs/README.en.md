@@ -13,7 +13,6 @@ An experimental **JavaScript → custom bytecode** toolchain for **browsers and 
 | **Compiler (Hyperion)** | ES5 AST → Hyperion IR (basic blocks, `Phi`, instructions) |
 | **Assembler** | IR → `{ bytecode: number[], meta: string[] }` |
 | **VM** | Interprets bytecode (dependency injection, closures, `try`/`catch`, `throw`, calling conventions, etc.) |
-| **Obfuscator** | Obfuscation passes for the **linear** IR (exists alongside the Hyperion main path) |
 | **Builder** | `HyperionBuildBundle` + esbuild browser runtime, optional `javascript-obfuscator` |
 | **CLI** | `build` / `dump` / `runtime` / `all` |
 
@@ -131,20 +130,19 @@ npm run cli -- dump <in.js> [outDir]
 ```text
 twisted/
   src/
-    assembler/          # HyperionAssembler / LinearAssembler → bytecode
-    builder/            # HyperionBuildBundle, runtime, linear pipeline base (linear)
+    assembler/          # HyperionAssembler → bytecode
+    builder/            # HyperionBuildBundle, runtime
     compiler/           # HyperionCompiler, serialization, IR values & instructions (value/)
-    obfuscator/         # IR obfuscation passes (not wired to Hyperion path yet)
-    vm/                 # Bytecode interpreter and call stack
+    vm/                 # Synchronous bytecode interpreter and call stack
     utils/              # Helpers (e.g. bytecode)
     cli.ts              # CLI entry
     constant.ts         # Opcodes and related constants
     debugger.ts         # Debug entry
-    instruction.ts      # Linear IR instruction defs (alongside Hyperion)
+    instruction.ts      # Assembler stack-IR buffer (Hyperion lowering)
   example/              # Sample inputs (e.g. fingerprint)
-  tests/                # Compiler / VM / obfuscator tests
+  tests/                # Compiler / VM tests
   docs/                 # IR notes, this English README, todos
-  public/               # Static assets if used for demos
+  public/               # GitHub Pages (runtime.js built in CI)
   dist/                 # Build output (gitignored)
 ```
 
@@ -220,7 +218,7 @@ These do **not** change the ✅ marks for “ES5 path complete,” but going bey
 |------------|:------:|-------|
 | Dependency injection table | ✅ | Globals declared at compile time (aligned with VM injection) |
 | Browser `runtime.js` bundle | ✅ | See `npm run build:pages` / `npm run cli -- all …` |
-| IR obfuscation (linear IR) | ✅ | Chainable passes on the `LinearCompiler` path |
+| Outer runtime obfuscation | ✅ | `javascript-obfuscator` (`--obfuscate`) |
 
 **Legend:** ✅ complete on typical ES5 paths　❌ not implemented at statement level (listed above)
 

@@ -1,3 +1,7 @@
+/**
+ * HyperionAssembler 降低后的栈式字节码中间指令（非独立 Linear 编译器）。
+ * 生产路径：Hyperion IR → 本结构 → bytecode + meta。
+ */
 import { Opcode } from "./constant.js";
 
 enum ArgKind {

@@ -14,7 +14,6 @@
 | **Compiler（Hyperion）** | ES5 AST → Hyperion IR（基本块、`Phi`、指令） |
 | **Assembler**          | IR → `{ bytecode: number[], meta: string[] }`                            |
 | **VM**                 | 解释执行 bytecode（依赖注入、闭包、`try/catch`、`throw`、调用约定等）                         |
-| **Obfuscator**         | 面向线性 IR 的混淆 Pass（与 Hyperion 主路径并行存在）                                     |
 | **Builder**            | `HyperionBuildBundle` + esbuild 打包浏览器 runtime，可选 `javascript-obfuscator` |
 | **CLI**                | `build` / `dump` / `runtime` / `all`                                     |
 
@@ -133,20 +132,19 @@ npm run cli -- dump <in.js> [outDir]
 ```text
 twisted/
   src/
-    assembler/          # HyperionAssembler / LinearAssembler → bytecode
-    builder/              # HyperionBuildBundle、runtime、线性链路基座（linear）
+    assembler/          # HyperionAssembler → bytecode
+    builder/              # HyperionBuildBundle、runtime
     compiler/             # HyperionCompiler、序列化、IR 值与指令（value/）
-    obfuscator/           # IR 混淆 Pass (暂不支持)
-    vm/                   # 字节码解释器与调用栈
+    vm/                   # 同步字节码解释器与调用栈
     utils/                # 辅助脚本（如 bytecode）
     cli.ts                # 命令行入口
     constant.ts           # Opcode 等常量
     debugger.ts           # 调试入口
-    instruction.ts        # 线性 IR 指令定义（与 Hyperion 路径并存）
+    instruction.ts        # Assembler 内部栈式指令缓冲
   example/                # 示例输入（如 fingerprint）
-  tests/                  # compiler / vm / obfuscator 单测
+  tests/                  # compiler / vm 单测
   docs/                   # IR 说明、英文 README、todos
-  public/                 # 静态页等（若有浏览器演示）
+  public/                 # GitHub Pages（runtime.js 由 CI 生成）
   dist/                   # 构建输出（gitignore）
 ```
 
@@ -233,7 +231,7 @@ twisted/
 | ------------------- | --- | --------------------------------------- |
 | 依赖注入表               | ✅   | 编译期可声明全局依赖（与 VM 注入一致）                   |
 | 浏览器 `runtime.js` 打包 | ✅   | 见 `npm run build:pages` / `npm run cli -- all …` |
-| IR 混淆（线性 IR）        | ✅   | `LinearCompiler` 路径下可串联 Pass            |
+| 外层 runtime 混淆        | ✅   | `javascript-obfuscator`（`--obfuscate`）        |
 
 
 **图例：** ✅ 已在 ES5 常规路径完成　❌ 语句级未实现（上表单独列出）  

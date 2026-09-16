@@ -1,4 +1,3 @@
-export { LinearCompiler } from "./linear.js";
 export { HyperionCompiler } from "./hyperion.js";
 export { HyperionSerializer } from "./serialize.js";
 export { CompileError, CompileErrorCode } from "./error.js";
