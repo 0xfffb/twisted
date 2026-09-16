@@ -1,6 +1,6 @@
 ## Twisted IR（当前实现）
 
-仓库里并存两套中间表示，**默认构建链路（`npm run build:bundle` / CLI `build`）使用 Hyperion IR**；线性 IR 仍供 `LinearCompiler` 与部分混淆 Pass 使用。
+仓库里并存两套中间表示，**默认构建链路（`npm run cli -- build` / CLI `build`）使用 Hyperion IR**；线性 IR 仍供 `LinearCompiler` 与部分混淆 Pass 使用。
 
 | 路径 | 编译器 | IR 形态 | 汇编器 |
 |------|--------|---------|--------|
@@ -135,7 +135,7 @@ interface AssemblerBundle {
 | **`dump`** | `IRModule.dump()` 文本，人类可读（见 README 示例） |
 | **`ir.json`** | `HyperionSerializer.serializeModuleToJson(module)`，与 IR 一一对应的 JSON |
 
-由 `npm run dump` 或 `HyperionDump` 写出（见 `src/builder/hyperion.ts`）。
+由 `npm run cli -- dump` 或 `HyperionDump` 写出（见 `src/builder/hyperion.ts`）。
 
 ---
 

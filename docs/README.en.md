@@ -37,40 +37,19 @@ npm install
 
 ## Quick start
 
-### Typecheck
-
-```bash
-npm run typecheck
-```
-
-### Tests
-
 ```bash
 npm test
+npm run typecheck
+npm run build:pages   # example/fingerprint.js → public/runtime.js
 ```
 
-### One-shot browser build (example)
+Export IR debug artifacts:
 
 ```bash
-npm run build:all
+npm run cli -- dump example/fingerprint.js dist/browser
 ```
 
-By default uses `example/fingerprint.js` → `dist/browser/bundle.json` and `dist/browser/runtime.js` (with obfuscation).  
-Without outer obfuscation:
-
-```bash
-npm run build:all:plain
-```
-
-### Export IR debug artifacts (`dump` / `ir.json` / `es5.js`)
-
-```bash
-npm run dump
-```
-
-Writes under `dist/browser/` by default (see the `dump` script in `package.json`). The same directory also receives **`ir.json`** (serialized IR) and **`es5.js`** (Babel output).
-
-**`dump`**: human-readable IR from `HyperionCompiler#dump()` (same IR as `ir.json`). **Source vs dump** (after Babel → ES5, then compile):
+**`dump`**: human-readable IR from `HyperionCompiler#dump()`. **Source vs dump** (after Babel → ES5, then compile):
 
 ```js
 function add(a, b) {
@@ -99,11 +78,7 @@ define @add(%a, %b) {
 
 More complex control flow (loops, `phi`, `try`, etc.) expands to more basic blocks in **`dump`**; see **[ir.md](./ir.md)**.
 
-### Debug entry during development
-
-```bash
-npm run debugger
-```
+Local debug entry: `npx tsx src/debugger.ts`
 
 ---
 
@@ -130,20 +105,24 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 
 ## npm scripts
 
+
 | Script | Purpose |
-|--------|---------|
-| `npm test` | Node built-in tests (`tests/*.test.ts`) |
-| `npm run test:watch` | Watch mode |
+| ------ | ------- |
+| `npm test` | Compile and run Hyperion tests |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run build` / `npm run build:ts` | Compile TypeScript → `dist/` |
-| `npm run build:bundle` | Compile input only → `dist/browser/bundle.json` (paths are examples; see `package.json`) |
-| `npm run build:runtime` | Generate browser `runtime.js` from the bundle |
-| `npm run build:all` | bundle + runtime (obfuscation on by default) |
-| `npm run build:all:plain` | Same without builder-side obfuscation |
-| `npm run dump` | Writes **`dump`** to the output directory (default `dist/browser`; see `package.json`) |
+| `npm run build` | TypeScript → `dist/` |
+| `npm run build:pages` | fingerprint → `public/runtime.js` |
+| `npm run cli -- …` | Dev CLI (`build` / `dump` / `runtime` / `all`) |
 | `npm run format` | Prettier format `src/**/*.{js,ts}` |
-| `npm run format:check` | Prettier check only |
-| `npm run debugger` | Run `src/debugger.ts` |
+
+
+Everything else goes through the CLI, e.g.:
+
+```bash
+npm run cli -- build <in.js> <bundle.json> [--obfuscate]
+npm run cli -- runtime <bundle.json> <runtime.js> [--obfuscate]
+npm run cli -- dump <in.js> [outDir]
+```
 
 ---
 
@@ -240,7 +219,7 @@ These do **not** change the ✅ marks for “ES5 path complete,” but going bey
 | Capability | Status | Notes |
 |------------|:------:|-------|
 | Dependency injection table | ✅ | Globals declared at compile time (aligned with VM injection) |
-| Browser `runtime.js` bundle | ✅ | See `npm run build:runtime` / `build:all` |
+| Browser `runtime.js` bundle | ✅ | See `npm run build:pages` / `npm run cli -- all …` |
 | IR obfuscation (linear IR) | ✅ | Chainable passes on the `LinearCompiler` path |
 
 **Legend:** ✅ complete on typical ES5 paths　❌ not implemented at statement level (listed above)

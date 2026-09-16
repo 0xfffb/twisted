@@ -15,19 +15,10 @@
   "scripts": {
     "cli": "node --import tsx src/cli.ts",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/compiler.test.js dist-test/tests/vm.test.js",
-    "test:watch": "node --import tsx --test --watch tests/compiler.test.ts tests/vm.test.ts",
-    "debugger": "tsx src/debugger.ts",
     "typecheck": "tsc --noEmit",
-    "build:ts": "tsc",
-    "build": "npm run build:ts",
-    "build:bundle": "npm run cli -- build",
-    "build:runtime": "npm run cli -- runtime",
-    "build:all": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js --obfuscate",
-    "build:all:plain": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/runtime.js",
+    "build": "tsc",
     "build:pages": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json public/runtime.js",
-    "dump": "npm run cli -- dump example/fingerprint.js dist/browser",
-    "format": "prettier --write \"src/**/*.{js,ts}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js}\""
+    "format": "prettier --write \"src/**/*.{js,ts}\""
   },
   "devDependencies": {
     "@babel/generator": "^7.28.3",

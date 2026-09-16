@@ -39,40 +39,19 @@ npm install
 
 ## 快速开始
 
-### 类型检查
-
-```bash
-npm run typecheck
-```
-
-### 运行测试
-
 ```bash
 npm test
+npm run typecheck
+npm run build:pages   # example/fingerprint.js → public/runtime.js
 ```
 
-### 一键生成浏览器产物（示例）
+导出 IR 调试产物：
 
 ```bash
-npm run build:all
+npm run cli -- dump example/fingerprint.js dist/browser
 ```
 
-默认使用 `example/fingerprint.js` → 输出 `dist/browser/bundle.json` 与 `dist/browser/runtime.js`（含混淆）。  
-不需要外层混淆时：
-
-```bash
-npm run build:all:plain
-```
-
-### 导出 IR 调试产物（dump / ir.json / es5.js）
-
-```bash
-npm run dump
-```
-
-默认写入 `dist/browser/`（见 `package.json` 中 `dump` 脚本参数）。同目录还会生成 **`ir.json`**（JSON 序列化 IR）与 **`es5.js`**（Babel 降级结果）。
-
-**`dump`**：`HyperionCompiler#dump()` 的可读 IR（与 `ir.json` 同源）。**源码与 dump 对照**（先 Babel 降 ES5 再编译）：
+**`dump`**：`HyperionCompiler#dump()` 的可读 IR。**源码与 dump 对照**（先 Babel 降 ES5 再编译）：
 
 ```js
 function add(a, b) {
@@ -101,11 +80,7 @@ define @add(%a, %b) {
 
 复杂控制流（循环、`phi`、`try` 等）在 **`dump`** 里会展开为更多基本块；详见 **[docs/ir.md](docs/ir.md)**。
 
-### 开发时直接跑调试入口
-
-```bash
-npm run debugger
-```
+本地调试入口：`npx tsx src/debugger.ts`
 
 ---
 
@@ -133,22 +108,23 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 ## npm scripts
 
 
-| 脚本                                   | 作用                                                       |
-| ------------------------------------ | -------------------------------------------------------- |
-| `npm test`                           | `tsc -p tsconfig.test.json` 后跑 Hyperion 单测（不经 tsx）           |
-| `npm run test:watch`                 | tsx 监听模式（仅本地；遇 esbuild 平台错误请 `npm ci`）               |
-| `npm run typecheck`                  | `tsc --noEmit`                                           |
-| `npm run build` / `npm run build:ts` | 编译 TypeScript → `dist/`                                  |
-| `npm run build:bundle -- <in> <out>` | 编译指定输入为 bundle.json（须自行传路径）                         |
-| `npm run build:runtime -- <bundle> <out>` | 由 bundle 生成浏览器 `runtime.js`（须自行传路径）               |
-| `npm run build:all`                  | 示例：fingerprint → bundle + runtime（默认混淆）               |
-| `npm run build:all:plain`            | 同上，不启用 builder 侧混淆选项                                     |
-| `npm run build:pages`                | fingerprint → `public/runtime.js`（供 GitHub Pages / 本地预览） |
-| `npm run dump`                       | `dump` 写入输出目录（默认 `dist/browser`）                         |
-| `npm run format`                     | Prettier 格式化 `src/**/*.{js,ts}`                          |
-| `npm run format:check`               | Prettier 仅检查，不写入                                         |
-| `npm run debugger`                   | 运行 `src/debugger.ts`                                     |
+| 脚本                    | 作用                                              |
+| --------------------- | ----------------------------------------------- |
+| `npm test`            | 编译测试并跑 Hyperion 单测                              |
+| `npm run typecheck`   | `tsc --noEmit`                                  |
+| `npm run build`       | TypeScript → `dist/`                            |
+| `npm run build:pages` | fingerprint → `public/runtime.js`（Pages / 预览） |
+| `npm run cli -- …`    | 开发期 CLI（build / dump / runtime / all）           |
+| `npm run format`      | Prettier 格式化 `src/**/*.{js,ts}`                 |
 
+
+其余能力一律走 CLI，例如：
+
+```bash
+npm run cli -- build <in.js> <bundle.json> [--obfuscate]
+npm run cli -- runtime <bundle.json> <runtime.js> [--obfuscate]
+npm run cli -- dump <in.js> [outDir]
+```
 
 ---
 
@@ -254,7 +230,7 @@ twisted/
 | 能力                  | 状态  | 说明                                      |
 | ------------------- | --- | --------------------------------------- |
 | 依赖注入表               | ✅   | 编译期可声明全局依赖（与 VM 注入一致）                   |
-| 浏览器 `runtime.js` 打包 | ✅   | 见 `npm run build:runtime` / `build:all` |
+| 浏览器 `runtime.js` 打包 | ✅   | 见 `npm run build:pages` / `npm run cli -- all …` |
 | IR 混淆（线性 IR）        | ✅   | `LinearCompiler` 路径下可串联 Pass            |
 
 
