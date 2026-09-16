@@ -14,7 +14,8 @@
   },
   "scripts": {
     "cli": "node --import tsx src/cli.ts",
-    "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/compiler.test.js dist-test/tests/vm.test.js dist-test/tests/this-binding.test.js dist-test/tests/obfuscator.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/compiler.test.js dist-test/tests/vm.test.js dist-test/tests/this-binding.test.js dist-test/tests/obfuscator.test.js dist-test/tests/check.test.js",
+    "bench": "npm run cli -- bench",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "build:pages": "npm run cli -- all example/fingerprint.js dist/browser/bundle.json public/runtime.js",

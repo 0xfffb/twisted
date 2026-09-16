@@ -20,6 +20,12 @@ interface BundleBuildOptions {
 	seed?: string;
 }
 
+/** 仅校验 ES5 白名单 + 编译，不写产物。成功则静默，失败抛 CompileError。 */
+async function HyperionCheck(inputPath: string): Promise<void> {
+	const source = await readFile(inputPath, "utf-8");
+	new HyperionCompiler(source).compile();
+}
+
 async function HyperionDump(inputPath: string, outDir = "."): Promise<void> {
 	const source = await readFile(inputPath, "utf-8");
 	const compiler = new HyperionCompiler(source);
@@ -51,4 +57,4 @@ async function HyperionBuildBundle(
 	return bundle;
 }
 
-export { HyperionBuildBundle, HyperionDump };
+export { HyperionBuildBundle, HyperionCheck, HyperionDump };

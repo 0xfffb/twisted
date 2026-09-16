@@ -23,6 +23,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm run cli -- check example/fingerprint.js
       - name: Rebuild public/runtime.js
         run: |
           rm -f public/runtime.js

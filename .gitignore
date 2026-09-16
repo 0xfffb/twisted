@@ -13,3 +13,5 @@ public/runtime.js
 **/target
 **/files
 **/dev
+bench/.out
+bench/latest.json

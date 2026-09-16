@@ -88,6 +88,8 @@ define @add(%a, %b) {
 安装并 `npm run build` 生成 `dist/` 后，可使用包内 CLI（见 `package.json` 的 `bin`）：
 
 ```text
+twisted check   <input.js> [input2.js ...]   # ES5 白名单，不写产物
+twisted bench   [input.js] [--harden] [--runs N]   # 体积 / VM 执行 benchmark
 twisted build   <input.js> <bundle.json> [--obfuscate]
 twisted dump    <input.js> [outDir]
 twisted runtime <bundle.json> <runtime.js> [--obfuscate]
@@ -115,6 +117,7 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 | `npm run build:pages` | fingerprint → `public/runtime.js`（CI / Pages **每次**重新生成，勿提交） |
 | `npm run cli -- …`    | 开发期 CLI（build / dump / runtime / all）           |
 | `npm run format`      | Prettier 格式化 `src/**/*.{js,ts}`                 |
+| `npm run bench`       | 同 `twisted bench`（默认 `example/fingerprint.js`） |
 
 
 其余能力一律走 CLI，例如：

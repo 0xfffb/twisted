@@ -6,6 +6,16 @@
 权威实现：[`src/compiler/whitelist.ts`](../src/compiler/whitelist.ts)。
 编译错误类型：[`src/compiler/error.ts`](../src/compiler/error.ts)。
 
+## 构建前检查
+
+```bash
+npm run cli -- check path/to/business.js
+# 多个文件
+npm run cli -- check a.js b.js
+```
+
+成功输出 `OK <path>`，失败打印 `CompileError[...]` 并以 exit code 1 退出（不写 bundle）。
+
 ## 支持的 Statement
 
 `VariableDeclaration`（**仅 `var`**）、`BlockStatement`、`ExpressionStatement`、`FunctionDeclaration`、

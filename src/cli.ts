@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
-import { HyperionBuildBundle, HyperionDump } from "./builder/hyperion.js";
+import { runBench } from "./builder/bench.js";
+import { HyperionBuildBundle, HyperionCheck, HyperionDump } from "./builder/hyperion.js";
 import { buildRuntime } from "./builder/runtime.js";
 import { CompileError } from "./compiler/error.js";
 
 type CliCommand =
+	| "bench"
 	| "build"
+	| "check"
 	| "dump"
 	| "runtime"
 	| "all"
@@ -22,6 +25,8 @@ function printHelp() {
 Twisted CLI
 
 Usage:
+  twisted check <inputPath> [inputPath2 ...]
+  twisted bench [inputPath] [--harden] [--runs N]
   twisted build <inputPath> <outputPath> [--obfuscate]
   twisted dump <inputPath> [outDir]
   twisted runtime <bundlePath> <outputPath> [--obfuscate]
@@ -36,6 +41,35 @@ function parseArgsWithObfuscate(args: string[]): { values: string[]; obfuscate: 
 	const obfuscate = args.includes("--obfuscate");
 	const values = args.filter((arg) => arg !== "--obfuscate");
 	return { values, obfuscate };
+}
+
+function parseBenchArgs(args: string[]): {
+	inputPath?: string;
+	hardenOnly: boolean;
+	runs?: number;
+} {
+	let inputPath: string | undefined;
+	let hardenOnly = false;
+	let runs: number | undefined;
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i]!;
+		if (arg === "--harden") {
+			hardenOnly = true;
+		} else if (arg === "--runs") {
+			const n = Number(args[++i]);
+			if (!Number.isFinite(n) || n < 1) {
+				throw new Error("bench: --runs requires a positive number");
+			}
+			runs = n;
+		} else if (!arg.startsWith("-")) {
+			inputPath = arg;
+		} else {
+			throw new Error(`bench: unknown flag ${arg}`);
+		}
+	}
+
+	return { inputPath, hardenOnly, runs };
 }
 
 async function printVersion() {
@@ -62,6 +96,28 @@ async function main() {
 			case "--version":
 				await printVersion();
 				return;
+			case "bench": {
+				const benchOpts = parseBenchArgs(rest);
+				await runBench({
+					inputPath: benchOpts.inputPath,
+					hardenOnly: benchOpts.hardenOnly,
+					runs: benchOpts.runs,
+				});
+				return;
+			}
+			case "check": {
+				if (rest.length < 1) {
+					console.error("check command requires: <inputPath> [inputPath2 ...]");
+					printHelp();
+					process.exitCode = 1;
+					return;
+				}
+				for (const inputPath of rest) {
+					await HyperionCheck(inputPath);
+					console.log(`OK ${inputPath}`);
+				}
+				return;
+			}
 			case "build": {
 				const { values, obfuscate } = parseArgsWithObfuscate(rest);
 				if (values.length < 2) {
@@ -122,6 +178,11 @@ async function main() {
 		}
 	} catch (err) {
 		if (err instanceof CompileError) {
+			console.error(err.message);
+			process.exitCode = 1;
+			return;
+		}
+		if (err instanceof Error) {
 			console.error(err.message);
 			process.exitCode = 1;
 			return;
