@@ -113,7 +113,7 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 | `npm test`            | 编译测试并跑 Hyperion 单测                              |
 | `npm run typecheck`   | `tsc --noEmit`                                  |
 | `npm run build`       | TypeScript → `dist/`                            |
-| `npm run build:pages` | fingerprint → `public/runtime.js`（Pages / 预览） |
+| `npm run build:pages` | fingerprint → `public/runtime.js`（CI / Pages **每次**重新生成，勿提交） |
 | `npm run cli -- …`    | 开发期 CLI（build / dump / runtime / all）           |
 | `npm run format`      | Prettier 格式化 `src/**/*.{js,ts}`                 |
 

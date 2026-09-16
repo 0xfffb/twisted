@@ -24,7 +24,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build:pages
+      - name: Rebuild public/runtime.js
+        run: |
+          rm -f public/runtime.js
+          npm run build:pages
+          test -f public/runtime.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

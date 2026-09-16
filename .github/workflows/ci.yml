@@ -23,5 +23,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: Rebuild public/runtime.js
+        run: |
+          rm -f public/runtime.js
+          npm run build:pages
+          test -f public/runtime.js
       - name: Smoke dump
         run: npm run cli -- dump example/fingerprint.js /tmp/twisted-dump

@@ -3,6 +3,8 @@
 **/dist
 **/dist-test
 **/build
+# 由 CI / npm run build:pages 每次重新生成，勿提交
+public/runtime.js
 **/bin
 **/obj
 **/lib

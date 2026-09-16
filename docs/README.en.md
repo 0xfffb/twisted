@@ -111,7 +111,7 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 | `npm test` | Compile and run Hyperion tests |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run build` | TypeScript → `dist/` |
-| `npm run build:pages` | fingerprint → `public/runtime.js` |
+| `npm run build:pages` | fingerprint → `public/runtime.js` (CI / Pages rebuild every run; do not commit) |
 | `npm run cli -- …` | Dev CLI (`build` / `dump` / `runtime` / `all`) |
 | `npm run format` | Prettier format `src/**/*.{js,ts}` |
 
