@@ -135,13 +135,13 @@ npm run cli -- all example/fingerprint.js dist/browser/bundle.json dist/browser/
 
 | 脚本                                   | 作用                                                       |
 | ------------------------------------ | -------------------------------------------------------- |
-| `npm test`                           | Node 内置测试（`tests/*.test.ts`）                             |
-| `npm run test:watch`                 | 监听模式跑测试                                                  |
+| `npm test`                           | `tsc -p tsconfig.test.json` 后跑 Hyperion 单测（不经 tsx）           |
+| `npm run test:watch`                 | tsx 监听模式（仅本地；遇 esbuild 平台错误请 `npm ci`）               |
 | `npm run typecheck`                  | `tsc --noEmit`                                           |
 | `npm run build` / `npm run build:ts` | 编译 TypeScript → `dist/`                                  |
-| `npm run build:bundle`               | 仅编译输入 → `dist/browser/bundle.json`（示例路径见 `package.json`） |
-| `npm run build:runtime`              | 由 bundle 生成浏览器 `runtime.js`                              |
-| `npm run build:all`                  | bundle + runtime（默认混淆）                                   |
+| `npm run build:bundle -- <in> <out>` | 编译指定输入为 bundle.json（须自行传路径）                         |
+| `npm run build:runtime -- <bundle> <out>` | 由 bundle 生成浏览器 `runtime.js`（须自行传路径）               |
+| `npm run build:all`                  | 示例：fingerprint → bundle + runtime（默认混淆）               |
 | `npm run build:all:plain`            | 同上，不启用 builder 侧混淆选项                                     |
 | `npm run dump`                       | `dump` 写入输出目录（默认 `dist/browser`）                         |
 | `npm run format`                     | Prettier 格式化 `src/**/*.{js,ts}`                          |
@@ -177,7 +177,9 @@ twisted/
 
 ## ES5 语法支持（Hyperion 编译器）
 
-构建时 `**src/builder/hyperion.ts**` 先用 `@babel/preset-env`（`targets: { ie: "11" }`）将源码降为 ES5，再由 `**src/compiler/hyperion.ts**` 遍历 AST。下表表示 **降级后** 仍须被 Hyperion 识别的语句与表达式；若 Babel 输出仍含未实现节点类型，编译会报错。
+生产路径的**权威白名单与报错约定**见 **[docs/syntax-whitelist.md](docs/syntax-whitelist.md)**（实现：`src/compiler/whitelist.ts`）。
+
+构建时 `**src/builder/hyperion.ts**` 先用 `@babel/preset-env`（`targets: { ie: "11" }`）将源码降为 ES5，再由 `**src/compiler/hyperion.ts**` 遍历 AST。下表表示 **降级后** 仍须被 Hyperion 识别的语句与表达式；若 Babel 输出仍含未实现节点类型，编译会报 `CompileError`。
 
 ### Statement（语句）
 
@@ -274,6 +276,7 @@ twisted/
 | -------------------------------------- | ---------------------------- |
 | [docs/README.en.md](docs/README.en.md) | 本说明的英文版（English translation） |
 | [docs/ir.md](docs/ir.md)               | IR / Opcode 约定               |
+| [docs/syntax-whitelist.md](docs/syntax-whitelist.md) | ES5 白名单与 CompileError |
 | [docs/todos.md](docs/todos.md)         | 备忘与待办                        |
 
 

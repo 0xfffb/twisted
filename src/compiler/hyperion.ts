@@ -36,10 +36,19 @@ import type {
 import type { BasicBlock } from "./value/block.js";
 import { BaseCompiler } from "./base.js";
 import { IRBuilder } from "./builder.js";
+import { CompileError, CompileErrorCode } from "./error.js";
 import { IRModule } from "./module.js";
 import { HyperionSerializer } from "./serialize.js";
 import { ConstValue } from "./value/constant/const.js";
 import { Value } from "./value/value.js";
+import {
+	assertSupportedAssignmentTarget,
+	assertSupportedBinding,
+	assertSupportedExpression,
+	assertSupportedParams,
+	assertSupportedStatement,
+	assertSupportedUpdateArgument,
+} from "./whitelist.js";
 
 interface LoopFrame {
 	breakBlock: BasicBlock;
@@ -55,7 +64,12 @@ class SSAScope {
 
 	lookup(name: string): Value {
 		const v = this.bindings.get(name);
-		if (v === undefined) throw new Error(`Undefined variable: ${name}`);
+		if (v === undefined) {
+			throw new CompileError({
+				code: CompileErrorCode.UNDEFINED_VARIABLE,
+				message: `Undefined variable: ${name}`,
+			});
+		}
 		return v;
 	}
 
@@ -108,6 +122,7 @@ class HyperionCompiler extends BaseCompiler {
     }
 
 	private compileStatement(node: Statement, scope: SSAScope): void {
+		assertSupportedStatement(node);
 		switch (node.type) {
 			case "VariableDeclaration":
 				this.compileVariableDeclaration(node as VariableDeclaration, scope);
@@ -159,12 +174,19 @@ class HyperionCompiler extends BaseCompiler {
 			case "DebuggerStatement":
 				break;
 			default:
-				throw new Error(`HyperionCompiler: Unsupported statement type ${node.type}`);
+				assertSupportedStatement(node);
 		}
 	}
 
 	private compileFunctionDeclaration(node: FunctionDeclaration, scope: SSAScope): void {
-		if (!node.id) throw new Error("Anonymous function declarations are not supported");
+		if (!node.id) {
+			throw CompileError.fromNode(
+				CompileErrorCode.SEMANTIC,
+				"Anonymous function declarations are not supported",
+				node,
+			);
+		}
+		assertSupportedParams(node.params, node);
 		const irName = this.allocFunctionName(node.id.name);
 		const fn = this.compileFunctionLike(
 			irName,
@@ -176,6 +198,7 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileFunctionExpression(node: FunctionExpression, scope: SSAScope): Value {
+		assertSupportedParams(node.params, node);
 		const name = this.allocFunctionName(node.id?.name ?? "__anon");
 		return this.compileFunctionLike(name, node.params as Identifier[], node.body, scope);
 	}
@@ -622,13 +645,23 @@ class HyperionCompiler extends BaseCompiler {
 
 	private compileBreakStatement(): void {
 		const frame = this.loopStack.at(-1);
-		if (!frame) throw new Error("break outside of loop");
+		if (!frame) {
+			throw new CompileError({
+				code: CompileErrorCode.SEMANTIC,
+				message: "break outside of loop",
+			});
+		}
 		this.builder.buildBr(frame.breakBlock);
 	}
 
 	private compileContinueStatement(): void {
 		const frame = this.loopStack.at(-1);
-		if (!frame) throw new Error("continue outside of loop");
+		if (!frame) {
+			throw new CompileError({
+				code: CompileErrorCode.SEMANTIC,
+				message: "continue outside of loop",
+			});
+		}
 		this.builder.buildBr(frame.continueBlock);
 	}
 
@@ -646,9 +679,7 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileVariableDeclarator(node: VariableDeclarator, scope: SSAScope): void {
-		if (node.id.type !== "Identifier") {
-			throw new Error(`Unsupported variable declaration left value type: ${node.id.type}`);
-		}
+		assertSupportedBinding(node.id);
 		const name = (node.id as Identifier).name;
 		const val = node.init
 			? this.compileExpression(node.init as Expression, scope)
@@ -661,6 +692,7 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileExpression(node: Expression, scope: SSAScope): Value {
+		assertSupportedExpression(node);
 		switch (node.type) {
 			case "BinaryExpression":
 				return this.compileBinaryExpression(node as BinaryExpression, scope);
@@ -704,7 +736,12 @@ class HyperionCompiler extends BaseCompiler {
 			case "ThisExpression":
 				return this.builder.buildThis();
 			default:
-				throw new Error(`HyperionCompiler: Unsupported expression type ${node.type}`);
+				assertSupportedExpression(node);
+				throw CompileError.fromNode(
+					CompileErrorCode.UNSUPPORTED_EXPRESSION,
+					`${(node as Expression).type} is not in the ES5 whitelist`,
+					node,
+				);
 		}
 	}
 
@@ -763,13 +800,16 @@ class HyperionCompiler extends BaseCompiler {
 			case "void":
 				return this.builder.buildVoid(operand);
 			default:
-				throw new Error(`Unsupported unary operator: ${node.operator}`);
+				throw CompileError.fromNode(
+					CompileErrorCode.UNSUPPORTED_OPERATOR,
+					`Unsupported unary operator: ${node.operator}`,
+					node,
+				);
 		}
 	}
 
 	private compileUpdateExpression(node: UpdateExpression, scope: SSAScope): Value {
-		if (node.argument.type !== "Identifier")
-			throw new Error("Only identifier update is supported");
+		assertSupportedUpdateArgument(node);
 		const name = (node.argument as Identifier).name;
 		const old = scope.lookup(name);
 		const one = new ConstValue(1);
@@ -789,6 +829,7 @@ class HyperionCompiler extends BaseCompiler {
 	}
 
 	private compileAssignmentExpression(node: AssignmentExpression, scope: SSAScope): Value {
+		assertSupportedAssignmentTarget(node.left as { type: string; loc?: any });
 		const rhs = this.compileExpression(node.right as Expression, scope);
 
 		if (node.left.type === "Identifier") {
@@ -811,7 +852,11 @@ class HyperionCompiler extends BaseCompiler {
 					val = this.builder.buildDiv(scope.lookup(name), rhs);
 					break;
 				default:
-					throw new Error(`Unsupported assignment operator: ${node.operator}`);
+					throw CompileError.fromNode(
+						CompileErrorCode.UNSUPPORTED_OPERATOR,
+						`Unsupported assignment operator: ${node.operator}`,
+						node,
+					);
 			}
 			scope.define(name, val);
 			return val;
@@ -840,8 +885,10 @@ class HyperionCompiler extends BaseCompiler {
 								case "/=":
 									return this.builder.buildDiv(cur, rhs);
 								default:
-									throw new Error(
+									throw CompileError.fromNode(
+										CompileErrorCode.UNSUPPORTED_OPERATOR,
 										`Unsupported assignment operator: ${node.operator}`,
+										node,
 									);
 							}
 						})();
@@ -857,7 +904,12 @@ class HyperionCompiler extends BaseCompiler {
 			return base;
 		}
 
-		throw new Error(`Unsupported assignment left-hand side: ${node.left.type}`);
+		assertSupportedAssignmentTarget(node.left as { type: string; loc?: any });
+		throw CompileError.fromNode(
+			CompileErrorCode.UNSUPPORTED_ASSIGN_TARGET,
+			`Assignment left-hand side ${node.left.type} is not supported`,
+			node.left,
+		);
 	}
 
 	private compileMemberExpression(node: MemberExpression, scope: SSAScope): Value {
@@ -1024,7 +1076,11 @@ class HyperionCompiler extends BaseCompiler {
 			case "in":
 				return this.builder.buildIn(lhs, rhs);
 			default:
-				throw new Error(`HyperionCompiler: Unsupported binary operator: ${node.operator}`);
+				throw CompileError.fromNode(
+					CompileErrorCode.UNSUPPORTED_OPERATOR,
+					`Unsupported binary operator: ${node.operator}`,
+					node,
+				);
 		}
 	}
 }

@@ -11,11 +11,10 @@
 - [x] 字符串常量池：`meta: string[]` + `LoadMeta`
 - [x] VM 基础执行链路：算术、跳转、变量、依赖、调用、构造、对象/数组构建
 - [x] 属性赋值链路：`AssignmentExpression` + `SetProperty`
-- [x] Builder 流程：
-  - [x] `build:bundle` 生成 `dist/runtime/bundle.json`
-  - [x] `build:runtime` 打包 `dist/browser/runtime(.esm).js`
-  - [x] `build:runtime:all` 端到端
+- [x] Builder 流程：bundle / runtime / all
 - [x] runtime 打包混淆（esbuild + javascript-obfuscator）
+- [x] Hyperion ES5 语法白名单 + `CompileError`（见 [syntax-whitelist.md](./syntax-whitelist.md)）
+- [x] Hyperion 路径单测 + GitHub Actions CI
 
 ---
 
@@ -25,26 +24,22 @@
 
 - [ ] 稳定支持 `worker.onmessage = <vm function>`
 - [ ] 明确“宿主函数 vs VM 函数”的调用桥接策略
-- [ ] 增加 Worker 场景回归样例（`files/runtime_input.js`）
+- [ ] 增加 Worker 场景回归样例
 
-### 2) 函数值语义收敛
+### 2) 路径收敛
 
-- [ ] 明确是否长期支持 `FunctionExpression / ArrowFunctionExpression`
-- [ ] 若不支持，固定“受限语法白名单”并在编译阶段给出友好错误
-- [ ] 若支持，补齐最小闭包语义与边界测试
+- [ ] Linear 编译/混淆旁路标记为 experimental 或移除
+- [ ] 函数值语义与闭包边界测试补齐
 
 ---
 
 ## 待办（中优先级）
 
-### 语法节点补齐（按阻塞度）
+### 语法边界（仍不支持）
 
-- [ ] `ArrayExpression`（当前会阻塞 `new Blob([code], ...)`）
-- [ ] `NullLiteral`
-- [ ] `UnaryExpression`
-- [ ] `LogicalExpression`
-- [ ] `ConditionalExpression`
-- [ ] 更多比较运算符（`> < >= <= != !==`）
+- [ ] `LabeledStatement` 与带标签的 break/continue
+- [ ] `UpdateExpression` 作用于 MemberExpression（`arr[i]++`）
+- [ ] 解构 / 默认参数 / rest / 类 / 模块
 
 ### 运行时行为完善
 
@@ -54,11 +49,7 @@
 
 ### 文档与测试
 
-- [ ] 增加“当前支持 AST 节点”清单（自动从代码导出或手工维护）
-- [ ] 增加最小 e2e 测试：
-  - [ ] 同步脚本执行
-  - [ ] async/await 基础
-  - [ ] Worker 基础发送
+- [ ] 最小浏览器 e2e（同步脚本 / Worker）
 
 ---
 
@@ -67,13 +58,13 @@
 - [ ] IR pass 管线化（normalize / obfuscate / validate）
 - [ ] 更细粒度混淆档位（dev/prod）
 - [ ] runtime 产物完整性校验（hash/signature）
-- [ ] 生成 sourcemap（仅开发环境）
+- [ ] 生成 sourcemap（仅开发环境；含 Babel 前行号映射）
 
 ---
 
 ## 里程碑建议
 
-- [ ] **M1（稳定链路）**：固定语法子集 + e2e 可重复
+- [ ] **M1（稳定链路）**：白名单 + CI（进行中/本阶段）
 - [ ] **M2（Worker 可用）**：回调注册、回传打印、错误路径可观测
-- [ ] **M3（语法扩展）**：补齐指纹常用节点（Array/Unary/Logical）
+- [ ] **M3（路径收敛）**：只保留 Hyperion 生产路径
 - [ ] **M4（加固）**：混淆策略和运行时保护分层

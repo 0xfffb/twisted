@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { HyperionCompiler } from "../compiler/index.js";
+import { CompileError, CompileErrorCode } from "../compiler/error.js";
 import { HyperionAssembler } from "../assembler/index.js";
 import { dirname, join } from "node:path";
 import { transformSync } from "@babel/core";
@@ -19,19 +20,23 @@ function downlevelToEs5(source: string): string {
 		comments: false,
 		compact: false,
 		presets: [
-		  [
-			"@babel/preset-env",
-			{
-			  targets: { ie: "11" },
-			  modules: false,
-			  bugfixes: true
-			}
-		  ]
-		]
-	  });
+			[
+				"@babel/preset-env",
+				{
+					targets: { ie: "11" },
+					modules: false,
+					bugfixes: true,
+				},
+			],
+		],
+	});
 
 	if (!result?.code) {
-		throw new Error("HyperionBuilder: Babel downlevel to ES5 failed");
+		throw new CompileError({
+			code: CompileErrorCode.BABEL_FAILED,
+			message: "Babel downlevel to ES5 failed",
+			phase: "babel",
+		});
 	}
 
 	return result.code;
@@ -50,7 +55,7 @@ async function HyperionDump(inputPath: string, outDir = "."): Promise<void> {
 async function HyperionBuildBundle(
 	inputPath: string,
 	outputPath: string,
-	options: BundleBuildOptions = {},
+	_options: BundleBuildOptions = {},
 ): Promise<Bundle> {
 	const source = await readFile(inputPath, "utf-8");
 	const es5Source = downlevelToEs5(source);
@@ -67,4 +72,4 @@ async function HyperionBuildBundle(
 	return bundle;
 }
 
-export { HyperionBuildBundle, HyperionDump };
+export { HyperionBuildBundle, HyperionDump, downlevelToEs5 };
